@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="barcode">Print Barcode</h2>
+
+    <form method="post" class="mt-4">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label for="id_selected_warehouse" class="form-label"><strong>Choose Warehouse</strong></label>
+            {{ form.selected_warehouse }}
+        </div>
+
+        <div class="mb-3">
+            <label for="id_product_code" class="form-label"><strong>Choose Product</strong></label>
+            {{ form.product_code }}
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save</button>
+    </form>
+</div>
+{% endblock %}

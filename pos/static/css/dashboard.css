@@ -1,0 +1,400 @@
+.layout {
+    display: flex;
+    height: 100vh;
+    flex-direction: row;
+}
+
+.sidebar {
+    width: 220px;
+    background-color: #c0dbf7;
+    padding-top: 1rem;
+    color: white;
+    height: calc(100vh - 60px);
+    position: fixed;
+    top: 60px;
+    left: 0;
+    overflow-y: auto;
+    z-index: 1;
+}
+body{
+    background-color: aliceblue;
+}
+
+.menu-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: background-color 0.3s ease;
+}
+.menu-item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 0%;
+    width: 100%;
+    background: #007bff;
+    z-index: -1;
+    transition: height 0.3s ease;
+}
+.menu-item:hover::before {
+    height: 100%;
+}
+.menu-item:hover {
+    background-color: #34495e;
+    color: white;
+}
+.menu-label {
+    position: relative;
+    z-index: 2;
+}
+.submenu-row {
+    display: none;
+    flex-wrap: wrap !important;
+    gap: 16px;
+    white-space: nowrap;
+    width: 100%;
+    overflow-x: auto;
+    overflow-x: hidden;
+    width: 100%;
+}
+
+.submenu-row.active {
+    display: block;
+}
+
+/* Submenu with hover effect like .menu-item */
+.submenu {
+    padding: 8px 12px;
+    text-decoration: none;
+    color: #333;
+    position: relative;
+    overflow: hidden;
+    border-radius: 6px;
+    min-width: 100px;
+    transition: color 0.3s ease;
+}
+
+.submenu::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 0%;
+    width: 100%;
+    background: #007bff;
+    z-index: -1;
+    transition: height 0.3s ease;
+    border-radius: 6px;
+}
+
+.submenu:hover::before {
+    height: 100%;
+}
+
+.submenu:hover {
+    color: white;
+}
+
+.main-content {
+    margin-left: 200px;
+    padding: 2rem;
+}
+
+/* Header bar layout */
+.header-bar {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #c0dbf7;
+    color: white;
+    padding: 10px 20px;
+    height: 60px;
+    position: static;
+}
+
+.logo-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.logo {
+    height: 40px;
+}
+
+.menu-toggle {
+    font-size: 20px;
+    padding: 5px 10px;
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+
+.pos-label {
+    font-size: 1.2rem;
+    color: #007bff;
+}
+.pos-label:hover {
+    text-decoration: underline;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+.country-select {
+    position: relative;
+}
+.country-select i {
+    cursor: pointer;
+}
+
+.country-select select {
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: white;
+}
+
+.user-img {
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+/* Sidebar collapsed style (optional) */
+.sidebar.collapsed {
+    width: 0;
+    overflow: hidden;
+    transition: width 0.3s ease;
+    display: none;
+}
+.bi-globe2 {
+    cursor: pointer;
+    vertical-align: middle;
+    font-size: 24px;
+    color: white;
+}
+.header-bar > .d-flex:first-child {
+    margin-left: 5%;
+}
+.ms-4 {
+    margin-left: 40px !important;
+}
+.me-custom {
+    margin-right: 300%;
+}
+.dropdown-item img {
+    border-radius: 2px;
+    object-fit: cover;
+}
+
+/* Sign Up Page Styles */
+.signup-container {
+    min-height: 90vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f8f9fa;
+    padding: 30px 15px;
+}
+
+.signup-card {
+    width: 100%;
+    max-width: 420px;
+    padding: 30px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.signup-card h2 {
+    font-weight: 600;
+    color: #333;
+}
+
+.signup-card form p {
+    margin-bottom: 15px;
+}
+
+.signup-card input,
+.signup-card select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.signup-card button {
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.signup-card a {
+    color: #0d6efd;
+    text-decoration: none;
+}
+
+.signup-card a:hover {
+    text-decoration: underline;
+}
+.password-help {
+    display: none;
+    font-size: 0.875rem;
+    color: #dc3545; /* Bootstrap red */
+    margin-top: 5px;
+}
+
+/* Submenu card with stacked layout */
+.submenu-card {
+    padding: 1rem;
+    border-radius: 8px;
+    min-width: 160px;
+    max-width: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    color: #000;
+    transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+.submenu-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 0;
+    width: 100%;
+    background-color:  #2c3e50;
+    z-index: -1;
+    transition: height 0.3s ease;
+}
+
+.submenu-card:hover::before {
+    height: 100%;
+}
+
+.submenu-card:hover {
+    transform: translateY(-4px);
+    color: rgb(248, 214, 214);
+}
+
+/* Submenu name and icon stacked */
+.submenu-top {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Icon image */
+.submenu-icon {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
+/* Amount styling - centered under submenu */
+.submenu-amount {
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: white;
+    background-color: transparent;
+    padding: 6px 0 0;
+    width: 100%;
+    text-align: center;
+    z-index: 2;
+}
+
+textarea {
+    resize: vertical;
+}
+input[placeholder], select[placeholder] {
+    font-style: italic;
+    color: #6c757d;
+}
+.barcode{
+    font-size: 20px;
+    
+}
+.chart-container {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    height: 300px;
+    overflow-x: auto;
+}
+.chart-container canvas {
+    width: 100% !important;
+    height: auto !important;
+    display: block;
+}
+.chart-card {
+  flex: 1 1 48%;
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 0 6px rgba(0,0,0,0.1);
+  min-width: 300px;
+}
+.chart-card canvas {
+  width: 100% !important;
+  height: 300px !important;
+}
+.submenu-bar {
+    margin-left: 210px;
+    padding: 10px;
+    background-color: #f0f8ff;
+    display: flex;
+    flex-wrap: wrap; /* Instead of one long row */
+    gap: 16px;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+}
+.table-responsive {
+    overflow-x: auto;
+}
+html, body {
+    margin: 0;
+    padding: 0;
+    max-width: 100%;
+    max-height: 100%;
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+  }
+
+  .main-content {
+    margin-left: 0;
+    padding: 1rem;
+  }
+
+  .submenu-bar {
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
+}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Place New Order</h2>
+<form method="post">{% csrf_token %}
+  <fieldset><legend>Customer Info</legend>
+    {{ cust_form.as_p }}
+  </fieldset>
+  <fieldset><legend>Order Items</legend>
+    {{ formset.management_form }}
+    <table class="table">
+      <thead><tr><th>Product</th><th>Quantity</th><th>Remove?</th></tr></thead>
+      <tbody>
+        {% for form in formset %}
+        <tr>
+          <td>{{ form.product }}</td>
+          <td>{{ form.quantity }}</td>
+          <td>{% if form.instance.pk %}{{ form.DELETE }}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button type="button" onclick="addForm()">➕ Add item</button>
+  </fieldset>
+  <button type="submit" class="btn btn-primary">Submit Order</button>
+</form>
+
+<script>
+  function addForm(){
+    const total = document.getElementById('id_orderitem_set-TOTAL_FORMS');
+    const count = parseInt(total.value);
+    const tmpl = document.querySelector('tbody tr').cloneNode(true);
+    tmpl.querySelectorAll('input, select').forEach(el => {
+      const name = el.name.replace('-0-','-'+count+'-');
+      const id = 'id_' + name;
+      el.name = name; el.id = id;
+      if(el.type != 'text' && el.tagName!='SELECT') el.value = '';
+    });
+    document.querySelector('tbody').appendChild(tmpl);
+    total.value = count + 1;
+  }
+</script>
+{% endblock %}

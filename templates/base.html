@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Inventory & POS{% endblock %}</title>
+
+    <!-- Bootstrap CSS & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+</head>
+<body>
+
+<!-- Header -->
+<div class="header-bar d-flex justify-content-between align-items-center px-4 py-2 shadow-sm">
+    <div class="d-flex align-items-center gap-3">
+        {% if ui_settings.logo %}
+            <img src="{{ ui_settings.logo.url }}" alt="Logo" class="logo" style="height: 40px;">
+        {% endif %}
+        <button class="menu-toggle btn btn-sm btn-outline-secondary" onclick="toggleSidebar()">☰</button>
+    </div>
+    <div>
+        <a href="{% url 'pos:dashboard' %}" class="pos-label text-decoration-none fw-bold text-primary fs-5" data-i18n="pos">POS</a>
+    </div>
+    <div class="d-flex align-items-center gap-4">
+
+        <!-- LANGUAGE SELECT -->
+        <select id="languageSelect" class="form-select form-select-sm" style="width: auto;">
+            <option value="en">English</option>
+            <option value="fr">Français</option>
+            <option value="es">Español</option>
+            <option value="ch">Chinese</option>
+            <option value="ig">Igbo</option>
+            <option value="hs">Hausa</option>
+            <option value="yb">Yoruba</option>
+
+        </select>
+
+        {% if user.is_authenticated %}
+            <div class="user-profile d-flex align-items-center gap-2">
+                {% if user.profile_image %}
+                    <img src="{{ user.profile_image.url }}" class="rounded-circle" alt="Profile" style="height: 35px; width: 35px; object-fit: cover;">
+                {% else %}
+                    <img src="{% static 'default-avatar.png' %}" class="rounded-circle" alt="Default Profile" style="height: 35px; width: 35px; object-fit: cover;">
+                {% endif %}
+                <span class="fw-semibold">{{ user.username }}</span>
+                <a href="{% url 'pos:logout' %}" class="btn btn-danger btn-sm" data-i18n="logout">Logout</a>
+            </div>
+        {% else %}
+            <a href="{% url 'pos:login' %}" class="btn btn-outline-secondary btn-sm" data-i18n="login">Login</a>
+        {% endif %}
+    </div>
+</div>
+
+
+<!-- Layout -->
+<div class="layout d-flex">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        {% for menu in menus %}
+            <div class="menu-item" onclick="showSubmenu('{{ menu.slug }}')">
+                <div class="menu-label">{{ menu.name }}</div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Content Area -->
+    <div class="content-area flex-grow-1 d-flex flex-column">
+
+        <!-- Submenu Bar -->
+        <div class="submenu-bar" id="submenu-bar">
+            {% for menu in menus %}
+                <div class="submenu-row" id="submenu-{{ menu.slug }}">
+                    {% if menu.slug == 'dashboard' %}
+                        <div class="container mt-3">
+
+                            <!-- Dashboard Cards -->
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <div class="card text-center" style="background-color: aliceblue;">
+                                        <div class="card-body">
+                                            <i class="bi bi-bar-chart-fill fs-2 text-success mb-2"></i>
+                                            <h6 class="card-title">Sales</h6>
+                                            <p class="fw-bold fs-5">₦{{ total_sales }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card text-center" style="background-color: aliceblue;">
+                                        <div class="card-body">
+                                            <i class="bi bi-bar-chart-fill fs-2 text-success mb-2"></i>
+                                            <h6 class="card-title">Purchases</h6>
+                                            <p class="fw-bold fs-5">₦{{ total_purchases }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card text-center" style="background-color: aliceblue;">
+                                        <div class="card-body">
+                                            <i class="bi bi-bar-chart-fill fs-2 text-success mb-2"></i>
+                                            <h6 class="card-title">Sales Returns</h6>
+                                            <p class="fw-bold fs-5">₦{{ total_sales_returns }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card text-center" style="background-color: aliceblue;">
+                                        <div class="card-body">
+                                            <i class="bi bi-bar-chart-fill fs-2 text-success mb-2"></i>
+                                            <h6 class="card-title">Purchase Returns</h6>
+                                            <p class="fw-bold fs-5">₦{{ total_purchase_returns }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Charts -->
+                            <div class="row mt-5">
+                                <div class="col-md-6">
+                                    <h5 class="fw-bold mb-3">Top Selling Products (2025)</h5>
+                                    <canvas id="topProductsChart"></canvas>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5 class="fw-bold mb-3">This Week’s Sales & Purchases</h5>
+                                    <canvas id="weeklyChart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Stock Alert and Top Customers -->
+                            <div class="row mt-5">
+                                <div class="col-md-7">
+                                    <div class="card">
+                                        <div class="card-header fw-bold">Stock Alert</div>
+                                        <div class="card-body table-responsive">
+                                            <table class="table table-bordered table-striped align-middle">
+                                                <thead class="table-dark">
+                                                    <tr>
+                                                        <th>Code</th>
+                                                        <th>Product</th>
+                                                        <th>Warehouse</th>
+                                                        <th>Quantity</th>
+                                                        <th>Alert Quantity</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for alert in stock_alerts %}
+                                                    <tr>
+                                                        <td>{{ alert.product.product_code }}</td>
+                                                        <td>{{ alert.product.name }}</td>
+                                                        <td>{{ alert.warehouse }}</td>
+                                                        <td>{{ alert.quantity }}</td>
+                                                        <td class="text-danger fw-bold">{{ alert.alert_quantity }}</td>
+                                                    </tr>
+                                                    {% empty %}
+                                                    <tr><td colspan="5">No stock alerts available.</td></tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-5">
+                                    <div class="card">
+                                        <div class="card-header fw-bold">Top 05 Customers (January)</div>
+                                        <div class="card-body">
+                                            <canvas id="topCustomersChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- NEW CHARTS SECTION -->
+                            <div class="row mt-5">
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header fw-bold">Sales Target</div>
+                                        <div class="card-body">
+                                            <canvas id="salesTargetChart" width="400" height="200"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header fw-bold">Payment Sent & Received (Last 5 Days)</div>
+                                        <div class="card-body">
+                                            <canvas id="paymentChart" width="400" height="200"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    {% else %}
+                        {% for sub in menu.submenus.all %}
+                            <a href="{{ sub.url }}" class="submenu hover-effect">{{ sub.name }}</a>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Page Content -->
+        <main class="main-content p-3">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+
+<!-- JSON Script Tags -->
+<!-- JSON Script Tags -->
+{{ sales_target|json_script:"salesTargetData" }}
+{{ payment_labels|json_script:"paymentDays" }}
+{{ payments_received|json_script:"paymentReceived" }}
+{{ payments_sent|json_script:"paymentSent" }}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    sidebar?.classList.toggle('collapsed');
+    document.querySelectorAll('.submenu-row').forEach(sub => sub.classList.remove('active'));
+}
+function showSubmenu(slug) {
+    document.querySelectorAll('.submenu-row').forEach(sub => sub.classList.remove('active'));
+    const target = document.getElementById('submenu-' + slug);
+    if (target) target.classList.add('active');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Top Products Pie
+    const topProductsChartEl = document.getElementById('topProductsChart');
+    if (topProductsChartEl) {
+        new Chart(topProductsChartEl, {
+            type: 'pie',
+            data: {
+                labels: ['Earphones', 'Laptops', 'Wristwatches', 'Smartphones', 'Golden Chains', 'Camera'],
+                datasets: [{
+                    data: [120, 90, 70, 110, 65, 80],
+                    backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6f42c1', '#20c997']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+
+    // Weekly Bar Chart
+    const weeklyChartEl = document.getElementById('weeklyChart');
+    if (weeklyChartEl) {
+        new Chart(weeklyChartEl, {
+            type: 'bar',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                datasets: [
+                    { label: 'Sales', data: [150, 200, 170, 220, 180, 190, 210], backgroundColor: '#0d6efd' },
+                    { label: 'Purchases', data: [100, 130, 120, 140, 150, 160, 170], backgroundColor: '#198754' }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'top' } }
+            }
+        });
+    }
+
+    // Top Customers Pie
+    const topCustomersLabels = JSON.parse(document.getElementById('topCustomersLabels').textContent);
+    const topCustomersData = JSON.parse(document.getElementById('topCustomersData').textContent);
+    const topCustomersChartEl = document.getElementById('topCustomersChart');
+    if (topCustomersChartEl) {
+        new Chart(topCustomersChartEl, {
+            type: 'pie',
+            data: {
+                labels: topCustomersLabels,
+                datasets: [{
+                    data: topCustomersData,
+                    backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6f42c1', '#20c997']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                let label = context.label || '';
+                                let value = context.parsed || 0;
+                                return `${label}: ₦${value.toLocaleString()}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Sales Target Doughnut Chart
+    const salesTarget = JSON.parse(document.getElementById('salesTargetData').textContent);
+    const salesTargetEl = document.getElementById('salesTargetChart');
+    if (salesTargetEl) {
+        new Chart(salesTargetEl, {
+            type: 'doughnut',
+            data: {
+                labels: ['Weekly', 'Monthly', 'Yearly'],
+                datasets: [{
+                    data: [salesTarget.weekly, salesTarget.monthly, salesTarget.yearly],
+                    backgroundColor: ['#6c5ce7', '#0984e3', '#fd7e14'],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                cutout: '70%',
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    // Payment Line Chart
+    const paymentDays = JSON.parse(document.getElementById('paymentDays').textContent);
+    const paymentReceived = JSON.parse(document.getElementById('paymentReceived').textContent);
+    const paymentSent = JSON.parse(document.getElementById('paymentSent').textContent);
+    const paymentChartEl = document.getElementById('paymentChart');
+    if (paymentChartEl) {
+        new Chart(paymentChartEl, {
+            type: 'line',
+            data: {
+                labels: paymentDays,
+                datasets: [
+                    {
+                        label: 'Received',
+                        data: paymentReceived,
+                        borderColor: '#6c5ce7',
+                        backgroundColor: 'rgba(108, 92, 231, 0.2)',
+                        fill: true,
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Sent',
+                        data: paymentSent,
+                        borderColor: '#b2bec3',
+                        backgroundColor: 'rgba(178, 190, 195, 0.2)',
+                        fill: true,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: ₦${context.parsed.y.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+});
+const translations = {
+    en: {
+        pos: "POS",
+        logout: "Logout",
+        login: "Login"
+    },
+    fr: {
+        pos: "Système de point de vente",
+        logout: "Déconnexion",
+        login: "Connexion"
+    },
+    es: {
+        pos: "Punto de venta",
+        logout: "Cerrar sesión",
+        login: "Iniciar sesión"
+    },
+    ch: {
+         pos: "销售点",
+        logout: "注销",
+        login: "登录"
+    },
+    ig: {
+        pos: "Ebe a na-ere ahịa",
+        logout: "Wụpụ",
+        login: "Banye"
+
+    },
+    hs:{
+        pos: "Wurin Ciniki",
+        logout: "Fita",
+        login: "Shiga"
+    },
+    yb:{
+        pos: "Ìbùdó tí wọ́n ti ń ta àjà",
+        logout: "Jade",
+        login: "Wọlé"
+    }
+
+}
+
+    
+
+
+// Apply language
+function applyTranslations(lang) {
+    const elements = document.querySelectorAll('[data-i18n]');
+    elements.forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        const translation = translations[lang] && translations[lang][key];
+        if (translation) el.textContent = translation;
+    });
+}
+
+// Handle language change
+document.addEventListener('DOMContentLoaded', () => {
+    const savedLang = localStorage.getItem('preferredLanguage') || 'en';
+    document.getElementById('languageSelect').value = savedLang;
+    applyTranslations(savedLang);
+
+    document.getElementById('languageSelect').addEventListener('change', function () {
+        const lang = this.value;
+        localStorage.setItem('preferredLanguage', lang);
+        applyTranslations(lang);
+    });
+});
+</script>
+
+</body>
+</html>

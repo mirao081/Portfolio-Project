@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Product Cards</h2>
+    <div class="row">
+        {% for product in products %}
+            <div class="col-md-4 mb-4">
+                <div class="card shadow-sm h-100">
+                    {% if product.image %}
+                        <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
+                    {% else %}
+                        <img src="{% static 'images/default-product.png' %}" class="card-img-top" alt="No Image">
+                    {% endif %}
+                    <div class="card-body">
+                        <h5 class="card-title">{{ product.name }}</h5>
+                        <p class="card-text">Code: {{ product.code }}</p>
+                        <p class="card-text">Price: ₦{{ product.price }}</p>
+                        <p class="card-text">Quantity: {{ product.quantity }}</p>
+                        <p class="card-text">Category: {{ product.category }}</p>
+                        <a href="#" class="btn btn-primary btn-sm">Edit</a>
+                        <a href="#" class="btn btn-danger btn-sm">Delete</a>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <p>No products available.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

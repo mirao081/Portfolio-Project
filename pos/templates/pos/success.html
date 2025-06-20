@@ -1,0 +1,11 @@
+{% extends "pos/base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="alert alert-success">
+        ✅ Product created successfully!
+    </div>
+    <a href="{% url 'pos:create_product' %}" class="btn btn-primary">Create Another Product</a>
+    <a href="{% url 'pos:product_list' %}" class="btn btn-secondary">View All Products</a>
+</div>
+{% endblock %}

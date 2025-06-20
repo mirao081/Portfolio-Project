@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <!-- Top Bar with Filters and Create Button -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Product List</h2>
+    <button class="btn btn-success" id="show-create-form-btn">+ Create Product</button>
+  </div>
+
+  <!-- Filter/Search/Export Row -->
+  <form method="GET" class="row g-2 mb-4">
+    <div class="col-md-3">
+      <input type="text" name="search" class="form-control" placeholder="Search by name or code" value="{{ request.GET.search }}">
+    </div>
+    <div class="col-md-2">
+      <select name="category" class="form-control">
+        <option value="">All Categories</option>
+        {% for cat in categories %}
+          <option value="{{ cat }}" {% if request.GET.category == cat %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="brand" class="form-control">
+        <option value="">All Brands</option>
+        {% for b in brands %}
+          <option value="{{ b }}" {% if request.GET.brand == b %}selected{% endif %}>{{ b }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3 d-flex gap-2">
+      <button type="submit" class="btn btn-primary">Filter</button>
+      <a href="{% url 'pos:product_list' %}" class="btn btn-secondary">Reset</a>
+    </div>
+    <div class="col-md-2 text-end">
+      <a href="{% url 'pos:export_products_excel' %}" class="btn btn-outline-success btn-sm">Export Excel</a>
+      <a href="{% url 'pos:export_products_pdf' %}" class="btn btn-outline-danger btn-sm">Export PDF</a>
+    </div>
+  </form>
+
+  <!-- Hidden Create Product Form -->
+  <div id="create-form-section" class="mb-5" style="display: none;">
+    <h3>Create New Product</h3>
+    <form method="POST" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="row">
+        {% for field in form %}
+          <div class="col-md-6 mb-3">
+            <label>{{ field.label_tag }}</label>
+            {{ field }}
+            {% if field.errors %}
+              <div class="text-danger small">{{ field.errors }}</div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <button type="submit" class="btn btn-primary">Save Product</button>
+    </form>
+  </div>
+
+  <!-- Product Table -->
+  <table class="table table-bordered table-striped">
+    <thead class="table-dark">
+      <tr>
+        <th>Image</th>
+        <th>Name</th>
+        <th>Code</th>
+        <th>Category</th>
+        <th>Brand</th>
+        <th>Price</th>
+        <th>Quantity</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for product in products %}
+        <tr>
+          <td>
+            {% if product.image %}
+              <img src="{{ product.image.url }}" alt="{{ product.name }}" style="height: 40px;">
+            {% else %}
+              No Image
+            {% endif %}
+          </td>
+          <td>{{ product.name }}</td>
+          <td>{{ product.product_code }}</td>
+          <td>{{ product.category }}</td>
+          <td>{{ product.brand }}</td>
+          <td>{{ product.product_price }}</td>
+          <td>{{ product.quantity }}</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="7">No products available.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</div>
+
+<script>
+// Show/hide create form
+document.addEventListener("DOMContentLoaded", function () {
+  const createBtn = document.getElementById("show-create-form-btn");
+  const createForm = document.getElementById("create-form-section");
+
+  createBtn.addEventListener("click", function () {
+    createForm.style.display = createForm.style.display === "none" ? "block" : "none";
+  });
+});
+</script>
+{% endblock %}
