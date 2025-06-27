@@ -1,9 +1,9 @@
 from django.db import models
 from django.db.models import F
-from inventory.models import Product
-from django.contrib.auth.models import AbstractUser
 from django.conf import settings
 from django.utils import timezone
+from inventory.models import Product
+from django.contrib.auth.models import AbstractUser
 
 
 class Customer(models.Model):
@@ -16,6 +16,8 @@ class Customer(models.Model):
     def __str__(self):
         return self.name
 
+# models.py
+
 class Sale(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
@@ -23,9 +25,23 @@ class Sale(models.Model):
     total = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     paid = models.BooleanField(default=False)
     amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    # Return/exchange fields
+    is_returned = models.BooleanField(default=False)
+    is_exchange = models.BooleanField(default=False)
+    exchange_for = models.ForeignKey(
+        Product, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='exchanges'
+    )
 
     def __str__(self):
         return f"Sale #{self.id}"
+
+    def update_total(self):
+        self.total = sum(item.subtotal for item in self.items.all())
+        self.save()
+
 
 class SaleItem(models.Model):
     sale = models.ForeignKey(Sale, related_name='items', on_delete=models.CASCADE)
@@ -71,9 +87,6 @@ class SubMenu(models.Model):
         return f"{self.menu.name} → {self.name}"
 
 
-class CustomUser(AbstractUser):
-    profile_image = models.ImageField(upload_to='profile_images/', blank=True, null=True)
-    role = models.CharField(max_length=50, choices=[('sales_rep', 'Sales Rep'), ('supervisor', 'Supervisor'), ('admin', 'Admin/GM')])
 
 class UISettings(models.Model):
     logo = models.ImageField(upload_to='logos/', blank=True, null=True)
@@ -94,11 +107,6 @@ class Country(models.Model):
         return self.name
     
 
-CATEGORY_CHOICES = [
-    ('Phones', 'Phones'),
-    ('Wristwatches', 'Wristwatches'),
-    ('Computer Accessories', 'Computer Accessories'),
-]
 
 BRAND_CHOICES = [
     ('Brand One', 'Brand One'),
@@ -116,32 +124,8 @@ UNIT_CHOICES = [
     (15, '15'),
 ]
 
-TAX_CHOICES = [
-    ('inclusive', 'Inclusive'),
-    ('exclusive', 'Exclusive'),
-]
 
-class Product(models.Model):
-    name = models.CharField(max_length=255)
-    code = models.CharField(max_length=100)
-    description = models.TextField(blank=True, null=True)
-    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
-    brand = models.CharField(max_length=50, choices=BRAND_CHOICES)
-    barcode_symbology = models.CharField(max_length=255)
-    product_cost = models.DecimalField(max_digits=10, decimal_places=2)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    product_unit = models.IntegerField(choices=UNIT_CHOICES)
-    sales_unit = models.IntegerField(choices=UNIT_CHOICES)
-    purchase_unit = models.IntegerField(choices=UNIT_CHOICES)
-    quantity = models.IntegerField()
 
-    order_tax = models.PositiveIntegerField(help_text="Percentage (%)")
-    tax_type = models.CharField(max_length=20, choices=TAX_CHOICES)
-    notes = models.TextField(blank=True, null=True)
-    image = models.ImageField(upload_to='product_images/', blank=True, null=True)
-
-    def __str__(self):
-        return self.name
 
 
 class BarcodeSettings(models.Model):
@@ -202,14 +186,7 @@ class WeeklySalesData(models.Model):
     def __str__(self):
         return self.day
     
-class StockAlert(models.Model):
-    product = models.ForeignKey('Product', on_delete=models.CASCADE)
-    warehouse = models.CharField(max_length=100)
-    quantity = models.IntegerField()
-    alert_quantity = models.IntegerField()
 
-    def __str__(self):
-        return f"{self.product.name} - Alert at {self.alert_quantity}"   
     
 class TopCustomer(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
@@ -220,13 +197,14 @@ class TopCustomer(models.Model):
     
 
 class SalesTarget(models.Model):
+    daily = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     weekly = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     monthly = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     yearly = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
     def __str__(self):
-        return f"Sales Targets - Weekly: {self.weekly}, Monthly: {self.monthly}, Yearly: {self.yearly}"
-
+        return f"Targets - Daily: {self.daily}, Monthly: {self.monthly}"
+    
 class PaymentTransaction(models.Model):
     date = models.DateField(default=timezone.now)
     type = models.CharField(max_length=10, choices=[('sent', 'Sent'), ('received', 'Received')])
@@ -251,3 +229,46 @@ class OrderItem(models.Model):
         return self.quantity * self.unit_price
     def __str__(self):
         return f"{self.quantity}×{self.product.name}"
+    
+class Notification(models.Model):
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    show_to_salesperson = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.message[:50]
+    
+
+    
+class Discount(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.percentage}% off {self.product.name}"
+
+    class Meta:
+        permissions = [
+            ("can_apply_discount", "Can apply discount to products"),
+        ]
+
+class Receipt(models.Model):
+    sale = models.OneToOneField(Sale, on_delete=models.CASCADE)
+    issued_at = models.DateTimeField(auto_now_add=True)
+
+class SalesReturn(models.Model):
+    sale = models.ForeignKey(Sale, on_delete=models.CASCADE)
+    reason = models.TextField(blank=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+# pos/models.py
+class StockAlert(models.Model):
+    product = models.ForeignKey('inventory.Product', on_delete=models.CASCADE, related_name='pos_stock_alerts')
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=0)
+    alert_quantity = models.PositiveIntegerField(default=10)
+    alert_sent = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Stock alert for {self.product.name}"

@@ -1,9 +1,9 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-from .models import CustomUser
+from users.models import CustomUser
 from .models import Product
 from .models import BarcodePrintConfig
-from .models import Order, OrderItem, Customer
+from .models import Order, OrderItem, Customer,Discount, Sale
 
 class CustomUserCreationForm(UserCreationForm):
     class Meta:
@@ -55,4 +55,35 @@ OrderItemFormSet = forms.inlineformset_factory(
 class CustomerForm(forms.ModelForm):
     class Meta:
         model = Customer
-        fields = ['phone', 'address']
+        fields = ['name', 'phone', 'address']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        }
+
+class NewSaleForm(forms.Form):
+    product = forms.ModelChoiceField(
+        queryset=Product.objects.all(),
+        label="Product",
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    quantity = forms.IntegerField(
+        min_value=1,
+        label="Quantity",
+        widget=forms.NumberInput(attrs={'class': 'form-control'})
+    )
+
+
+class ReturnExchangeForm(forms.Form):
+    sale = forms.ModelChoiceField(queryset=Sale.objects.all())
+    return_type = forms.ChoiceField(choices=[('return', 'Return'), ('exchange', 'Exchange')])
+    new_product = forms.ModelChoiceField(queryset=Product.objects.all(), required=False)
+
+class DiscountForm(forms.ModelForm):
+    class Meta:
+        model = Discount
+        fields = ['product', 'percentage']
+
+class ReceiptForm(forms.Form):
+    sale = forms.ModelChoiceField(queryset=Sale.objects.all())

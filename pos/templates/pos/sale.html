@@ -1,0 +1,68 @@
+{% extends 'pos/base.html' %}
+
+{% block title %}New Sale{% endblock %}
+
+{% block content %}
+<h2>🛒 New Sale</h2>
+
+<form method="post" id="sale-form">
+    {% csrf_token %}
+    {{ form.as_p }}
+    {{ formset.management_form }}
+
+    <div id="items">
+        {% for form in formset %}
+            <div class="sale-item">
+                {{ form.product.label_tag }} {{ form.product }}
+                {{ form.quantity.label_tag }} {{ form.quantity }}
+            </div>
+        {% endfor %}
+    </div>
+
+    <button type="button" id="review-sale-btn">Submit Sale</button>
+</form>
+
+<!-- Modal -->
+<div id="sale-summary-modal" style="display:none; background:#fff; padding:20px; border:1px solid #000;">
+    <h3>Sale Summary</h3>
+    <ul id="items-list"></ul>
+    <p>Total: $<span id="total-price"></span></p>
+    <button id="confirm-sale-btn">Confirm Payment</button>
+    <button onclick="closeModal()">Cancel</button>
+</div>
+
+<script>
+function closeModal() {
+    document.getElementById("sale-summary-modal").style.display = "none";
+}
+
+document.getElementById("review-sale-btn").addEventListener("click", function () {
+    let items = document.querySelectorAll(".sale-item");
+    let summaryList = document.getElementById("items-list");
+    summaryList.innerHTML = "";
+    let total = 0;
+
+    items.forEach(item => {
+        let productSelect = item.querySelector("select");
+        let quantityInput = item.querySelector("input");
+        let productName = productSelect.options[productSelect.selectedIndex].text;
+        let quantity = parseInt(quantityInput.value);
+
+        let price = parseFloat(productSelect.options[productSelect.selectedIndex].getAttribute("data-price")) || 0;
+        let subtotal = quantity * price;
+        total += subtotal;
+
+        if (quantity > 0) {
+            summaryList.innerHTML += `<li>${productName} x${quantity} - $${subtotal.toFixed(2)}</li>`;
+        }
+    });
+
+    document.getElementById("total-price").textContent = total.toFixed(2);
+    document.getElementById("sale-summary-modal").style.display = "block";
+});
+
+document.getElementById("confirm-sale-btn").addEventListener("click", function () {
+    document.getElementById("sale-form").submit();
+});
+</script>
+{% endblock %}

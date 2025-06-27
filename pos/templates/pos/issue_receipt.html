@@ -1,0 +1,9 @@
+{% extends "sales_dashboard.html" %}
+
+{% block content %}
+<h2>🧾 Issue Receipt</h2>
+<form method="post">{% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Issue</button>
+</form>
+{% endblock %}

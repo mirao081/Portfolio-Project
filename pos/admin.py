@@ -1,10 +1,11 @@
 from django.contrib import admin
-from .models import Menu, SubMenu, CustomUser, UISettings, Country
+from .models import Menu, SubMenu, UISettings, Country
 from django.contrib.auth.admin import UserAdmin
 from django.utils.html import format_html
 from .models import Product
 from .models import Warehouse, BarcodePrintConfig,TopSellingProduct, WeeklySalesData
 from .models import StockAlert, TopCustomer,Customer,SalesTarget, PaymentTransaction
+# from users.models import CustomUser
 
 
 # --- Submenu Inline Admin ---
@@ -17,15 +18,15 @@ class MenuAdmin(admin.ModelAdmin):
     inlines = [SubMenuInline]
 
 # --- Custom User Admin with Profile Image Preview ---
-class CustomUserAdmin(UserAdmin):
-    model = CustomUser
-    list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'profile_image_tag')
-    fieldsets = UserAdmin.fieldsets + (
-        ('Extra Info', {'fields': ('role', 'profile_image')}),
-    )
-    add_fieldsets = UserAdmin.add_fieldsets + (
-        ('Extra Info', {'fields': ('role', 'profile_image')}),
-    )
+# class CustomUserAdmin(UserAdmin):
+#     model = CustomUser
+#     list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'profile_image_tag')
+#     fieldsets = UserAdmin.fieldsets + (
+#         ('Extra Info', {'fields': ('role', 'profile_image')}),
+#     )
+#     add_fieldsets = UserAdmin.add_fieldsets + (
+#         ('Extra Info', {'fields': ('role', 'profile_image')}),
+#     )
 
     def profile_image_tag(self, obj):
         if obj.profile_image:
@@ -75,9 +76,9 @@ class TopCustomerAdmin(admin.ModelAdmin):
 class CustomerAdmin(admin.ModelAdmin):
     list_display = ('name', 'email', 'phone')
 
-# --- Admin Registrations ---
+# # --- Admin Registrations ---
 admin.site.register(Menu, MenuAdmin)
-admin.site.register(CustomUser, CustomUserAdmin)  # ✅ Use your customized admin
+# admin.site.register(CustomUser, CustomUserAdmin)  # ✅ Use your customized admin
 admin.site.register(UISettings)
 from .models import BarcodeSettings
 admin.site.register(BarcodeSettings)
@@ -88,4 +89,5 @@ admin.site.register(PaymentTransaction)
 
 
 
-# Register your models here.
+
+# # Register your models here.

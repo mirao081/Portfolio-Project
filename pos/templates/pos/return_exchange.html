@@ -1,0 +1,22 @@
+<!-- templates/pos/return_exchange.html -->
+
+<h2>Return or Exchange</h2>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit" class="btn btn-warning">Process Return/Exchange</button>
+</form>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const returnType = document.querySelector('[name="return_type"]');
+  const newProductField = document.querySelector('[name="new_product"]').closest('p');
+
+  function toggleNewProduct() {
+    newProductField.style.display = returnType.value === 'exchange' ? 'block' : 'none';
+  }
+
+  returnType.addEventListener('change', toggleNewProduct);
+  toggleNewProduct();
+});
+</script>

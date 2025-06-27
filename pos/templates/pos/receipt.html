@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Receipt #{{ sale.id }}</h2>
+<p><strong>Date:</strong> {{ sale.date }}</p>
+<p><strong>Customer:</strong> {{ sale.customer.name }}</p>
+
+<table border="1" cellpadding="8" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Product</th>
+      <th>Quantity</th>
+      <th>Unit Price</th>
+      <th>Subtotal</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in sale.items.all %}
+      <tr>
+        <td>{{ item.product.name }}</td>
+        <td>{{ item.quantity }}</td>
+        <td>₦{{ item.unit_price }}</td>
+        <td>₦{{ item.subtotal }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p><strong>Total:</strong> ₦{{ sale.total }}</p>
+
+<a href="{% url 'pos_interface' %}" class="btn btn-primary">← Back to POS</a>
+{% endblock %}

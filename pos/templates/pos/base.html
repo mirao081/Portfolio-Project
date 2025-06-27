@@ -1,0 +1,31 @@
+<!-- templates/pos/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}POS System{% endblock %}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <header style="background: #007bff; padding: 15px; color: white; border-radius: 10px;">
+        <h1>🧾 POS System</h1>
+        <nav>
+            <a href="{% url 'pos:sales_dashboard' %}" style="color: white; margin-right: 15px;">Dashboard</a>
+            <a href="{% url 'pos:new_sale' %}" style="color: white; margin-right: 15px;">New Sale</a>
+        </nav>
+    </header>
+
+    <main style="padding: 20px;">
+        {% if messages %}
+            {% for message in messages %}
+                <div style="background: #fce8b2; padding: 10px; border: 1px solid #e0b800; border-radius: 5px; margin-bottom: 15px;">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

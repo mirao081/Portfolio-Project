@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Register</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: rgb(167, 181, 193);
+            display: flex;
+            justify-content: center;
+            padding: 60px 20px; /* Top & Bottom padding added */
+            margin: 0;
+        }
+        .container {
+            background: white;
+            background-image: url('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSHntaXjbXseBmiMo1Cod6GWw0bfjTokKT1Lw&s');
+            background-repeat: no-repeat;
+            background-size: cover;  /* Optional: Makes the image cover the whole area */
+            background-position: center;
+            padding: 2rem 3rem;
+            border-radius: 10px;            
+            max-width: 500px;
+            width: 100%;
+            border: 5px solid white;
+            box-shadow: 0 9px 20px rgba(11, 11, 11, 0.1);
+            margin-bottom: 50px;
+            margin-top: 45px;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        form .form-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.2rem;
+        }
+
+        .form-group label {
+            flex: 0 0 120px;
+            font-weight: bold;
+        }
+
+        .form-group input,
+        .form-group select {
+            flex: 1;
+            padding: 0.6rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+button {
+    
+    width: 100%;
+    padding: 0.75rem;
+    background-color: #1f3d72;
+    color: white;
+    font-size: 1rem;
+    border: 1px solid white;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 1rem;
+    transition: all 0.3s ease; /* smooth animation */
+}
+ button:hover {
+    background-color: rgb(249, 244, 241);         
+    color: rgb(252, 61, 61);                    
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15); 
+}
+
+        .login-link {
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .error {
+            color: red;
+            margin-top: 0.2rem;
+            font-size: 0.9rem;
+        }
+        .container{
+            color: white;
+        }
+        .container h2{
+            font-size: 30px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>REGISTER</h2>
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="form-group">
+                {{ form.username.label_tag }}
+                {{ form.username }}
+            </div>
+            {% if form.username.errors %}
+                <div class="error">{{ form.username.errors }}</div>
+            {% endif %}
+
+            <div class="form-group">
+                {{ form.email.label_tag }}
+                {{ form.email }}
+            </div>
+            {% if form.email.errors %}
+                <div class="error">{{ form.email.errors }}</div>
+            {% endif %}
+
+            <div class="form-group">
+                {{ form.role.label_tag }}
+                {{ form.role }}
+            </div>
+            {% if form.role.errors %}
+                <div class="error">{{ form.role.errors }}</div>
+            {% endif %}
+
+            <div class="form-group">
+                {{ form.password.label_tag }}
+                {{ form.password }}
+            </div>
+            {% if form.password.errors %}
+                <div class="error">{{ form.password.errors }}</div>
+            {% endif %}
+
+            <button type="submit">Register</button>
+        </form>
+
+        <p class="login-link">Already have an account? <a href="{% url 'users:login' %}">Login here</a>.</p>
+    </div>
+</body>
+</html>

@@ -1,29 +1,24 @@
 from django.urls import path
-from django.contrib.auth import views as auth_views
 from . import views
+from django.contrib.auth import views as auth_views
 
 app_name = 'pos'
 
+app_name = 'pos'
 urlpatterns = [
-    path('', views.dashboard, name='dashboard'), 
-    path('register/', views.register_user, name='register'),
-    path('login/', views.login_user, name='login'),
-    path('signup/', views.signup_view, name='signup'),
-    path('logout/', views.logout_user, name='logout'),
+    path('sales/', views.sales_dashboard, name='sales_dashboard'),
+    path('sales/create/', views.create_sale, name='create_sale'),
+    path('sales/<int:sale_id>/', views.sale_detail, name='sale_detail'),
+    path('supervisor-dashboard/', views.supervisor_dashboard, name='supervisor_dashboard'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path('login/', auth_views.LoginView.as_view(template_name='pos/login.html'), name='login'),
+    path('return/', views.return_item, name='return_item'),
+    path('receipt/', views.issue_receipt, name='issue_receipt'),
+    path('customer/add/', views.add_customer, name='add_customer'),
 
-    # Dashboards
-    path('admin-dashboard/', views.dashboard_view, name='admin_dashboard'),
-    path('supervisor-dashboard/', views.dashboard_view, name='supervisor_dashboard'),
-    path('sales-rep-dashboard/', views.dashboard_view, name='sales_rep_dashboard'),
-
-    # Products
-    path('create-product/', views.create_product, name='create_product'),
-    path('product_list/', views.product_list_view, name='product_list'),
-    path('products-cards/', views.product_cards, name='product_cards'),
-    path('success/', views.product_success, name='product_success'),
-    path('export-products-excel/', views.export_products_excel, name='export_products_excel'),
-    path('export-products-pdf/', views.export_products_pdf, name='export_products_pdf'),
-    path('products/print-barcode/', views.print_barcode_view, name='print_barcode'),
-    path('order/create/', views.create_order, name='create_order'),
-    path('order/<int:order_id>/summary/', views.order_summary, name='order_summary'),
+    path('apply-discount/', views.apply_discount, name='apply_discount'),
+    path('issue-receipt/', views.issue_receipt, name='issue_receipt'),
+    path('receipt/<int:sale_id>/', views.sale_receipt, name='sale_receipt'),
+    path("pos/", views.new_pos_sale, name="pos_interface"),
+    path('ajax/get-product/', views.ajax_get_product, name='ajax_get_product'),
 ]

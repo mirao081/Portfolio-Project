@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Sale</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f8; }
+        .container { background: #fff; margin: 40px auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); width: 400px; text-align: center; }
+        h2 { color: #2d3e50; }
+        form { text-align: left; margin-top: 20px; }
+        label { display: block; margin: 15px 0 5px 0; color: #555; }
+        select, input[type="number"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 15px; font-size: 16px; }
+        button { background: #1976d2; color: #fff; border: none; padding: 10px 25px; border-radius: 6px; font-size: 16px; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #0d47a1; }
+        a { color: #1976d2; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .product-list { margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px; border-bottom: 1px solid #eee; }
+        th { background: #f4f6f8; }
+    </style>
+    <script>
+        let products = [];
+
+        function fetchProductName() {
+            const barcode = document.getElementById('barcode').value;
+            if (!barcode) {
+                document.getElementById('product_name').value = '';
+                return;
+            }
+            fetch(`/pos/ajax/get-product/?barcode=${encodeURIComponent(barcode)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('product_name').value = data.name;
+                    } else {
+                        document.getElementById('product_name').value = 'Not found';
+                    }
+                });
+        }
+
+        function addProduct() {
+            const barcode = document.getElementById('barcode').value;
+            const productName = document.getElementById('product_name').value;
+            const quantity = document.getElementById('quantity').value;
+            if (!barcode || !productName || productName === 'Not found' || !quantity) return;
+
+            products.push({ barcode, name: productName, quantity });
+            renderProductList();
+            document.getElementById('barcode').value = '';
+            document.getElementById('product_name').value = '';
+            document.getElementById('quantity').value = '';
+        }
+
+        function renderProductList() {
+            const table = document.getElementById('product-table-body');
+            table.innerHTML = '';
+            products.forEach((item, idx) => {
+                table.innerHTML += `<tr>
+                    <td>${item.barcode}</td>
+                    <td>${item.name}</td>
+                    <td>${item.quantity}</td>
+                    <td><button type="button" onclick="removeProduct(${idx})">Remove</button></td>
+                </tr>`;
+            });
+            document.getElementById('products-data').value = JSON.stringify(products);
+        }
+
+        function removeProduct(idx) {
+            products.splice(idx, 1);
+            renderProductList();
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h2>Create New Sale</h2>
+        <form method="post">
+            {% csrf_token %}
+            <label for="barcode">Product Barcode:</label>
+            <input type="text" id="barcode" name="barcode" autofocus onblur="fetchProductName()">
+            <button type="button" onclick="fetchProductName()">Check Product</button>
+            <label for="product_name">Product Name:</label>
+            <input type="text" id="product_name" name="product_name" readonly>
+            <label for="quantity">Quantity:</label>
+            <input type="number" id="quantity" name="quantity" min="1">
+            <button type="button" onclick="addProduct()">Add Product</button>
+            <input type="hidden" name="products_data" id="products-data">
+            <button type="submit">Submit Sale</button>
+        </form>
+        <div class="product-list">
+            <h3>Products in Sale</h3>
+            <table>
+                <thead>
+                    <tr><th>Barcode</th><th>Name</th><th>Quantity</th><th>Action</th></tr>
+                </thead>
+                <tbody id="product-table-body"></tbody>
+            </table>
+        </div>
+        <p><a href="{% url 'pos:sales_dashboard' %}">Back to Dashboard</a></p>
+    </div>
+</body>
+</html> 

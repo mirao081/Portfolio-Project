@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Product List</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f8; }
+        .container { background: #fff; margin: 40px auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); width: 900px; }
+        h2 { color: #2d3e50; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #f4f6f8; }
+        a.button { background: #1976d2; color: #fff; padding: 6px 16px; border-radius: 6px; text-decoration: none; }
+        a.button:hover { background: #0d47a1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Product List</h2>
+        <a class="button" href="{% url 'inventory:add_product' %}">Add Product</a>
+        <table>
+            <tr>
+                <th>Name</th>
+                <th>Code</th>
+                <th>Category</th>
+                <th>Brand</th>
+                <th>Stock</th>
+                <th>Price</th>
+            </tr>
+            {% for product in products %}
+            <tr>
+                <td>{{ product.name }}</td>
+                <td>{{ product.code }}</td>
+                <td>{{ product.category }}</td>
+                <td>{{ product.brand }}</td>
+                <td>{{ product.quantity }}</td>
+                <td>₦{{ product.price }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6">No products found.</td></tr>
+            {% endfor %}
+        </table>
+    </div>
+</body>
+</html> 

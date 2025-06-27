@@ -1,277 +1,404 @@
-from django.shortcuts import render, redirect
-from django.contrib.auth import login, logout, authenticate
-from django.contrib.auth.forms import UserCreationForm
-from django.db.models import Sum, Q
-from pos.models import SaleItem
-from .forms import CustomUserCreationForm, CustomAuthenticationForm, ProductForm, BarcodePrintForm
-from .models import (
-    Menu, Country, UISettings, Sale, Product, Purchase, SalesReturn,
-    PurchaseReturn, BarcodePrintConfig, Warehouse, TopSellingProduct,
-    WeeklySalesData, StockAlert, TopCustomer,SalesTarget, PaymentTransaction,
-)
-from django.contrib.auth.decorators import login_required
-from .models import Customer, Order, OrderItem
-from .forms import OrderItemFormSet, CustomerForm
-from datetime import timedelta, date
-from django.http import HttpResponse
-from .utils import update_weekly_data
-import datetime
-from django.db.models import F
-from django.utils import timezone
-
-
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required,permission_required
+from django.db.models import Sum
+from .models import Sale, SaleItem, Customer, Product, SalesReturn,SalesTarget, Notification
+from users.models import CustomUser
 import json
-
-def register_user(request):
-    if request.method == 'POST':
-        form = CustomUserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            return redirect('pos:dashboard')
-    else:
-        form = CustomUserCreationForm()
-    return render(request, 'pos/register.html', {'form': form})
-
-def login_user(request):
-    if request.method == 'POST':
-        form = CustomAuthenticationForm(data=request.POST)
-        if form.is_valid():
-            user = form.get_user()
-            login(request, user)
-            return redirect('pos:dashboard')
-    else:
-        form = CustomAuthenticationForm()
-    return render(request, 'pos/login.html', {'form': form})
-
-def logout_user(request):
-    logout(request)
-    return redirect('pos:login')
+from django.utils import timezone
+from datetime import timedelta
+from .models import SalesTarget, TopSellingProduct, TopCustomer
+from .forms import CustomerForm
+from users.models import SiteSettings
+from .forms import NewSaleForm, DiscountForm, ReceiptForm
+from .models import Sale, Discount, Receipt
+from .forms import ReturnExchangeForm
+from django.contrib import messages
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET
 
 
-def dashboard(request):
+def get_sales_dashboard_context(request):
+    settings = SiteSettings.objects.first()
     today = timezone.now().date()
-    five_days_ago = today - timedelta(days=4)
+    this_month = timezone.now().month
 
-    # Core aggregates
-    total_sales = Sale.objects.aggregate(total=Sum('total'))['total'] or 0
-    total_purchases = Purchase.objects.aggregate(total=Sum('total'))['total'] or 0
-    total_sales_returns = SalesReturn.objects.aggregate(total=Sum('amount'))['total'] or 0
-    total_purchase_returns = PurchaseReturn.objects.aggregate(total=Sum('amount'))['total'] or 0
+    today_sales_qs = Sale.objects.filter(date__date=today, cashier=request.user)
+    total_sales_today = today_sales_qs.aggregate(Sum('total'))['total__sum'] or 0
+    transaction_count = today_sales_qs.count()
 
-    # Stock alerts
-    low_stock_products = Product.objects.filter(
-        id__in=StockAlert.objects.filter(quantity__lte=F('alert_quantity')).values_list('product_id', flat=True)
-    )
-
-    # Top-selling products
-    top_products_qs = (
-        SaleItem.objects
+    best_selling_items = (
+        SaleItem.objects.filter(sale__date__date=today, sale__cashier=request.user)
         .values('product__name')
-        .annotate(total_sold=Sum('quantity'))
-        .order_by('-total_sold')[:6]
+        .annotate(total_quantity=Sum('quantity'))
+        .order_by('-total_quantity')[:5]
     )
-    top_products_labels = [item['product__name'] for item in top_products_qs]
-    top_products_data = [item['total_sold'] for item in top_products_qs]
-
-    # Top customers
-    top_customers_qs = (
-        Sale.objects
-        .values('customer__name')
-        .annotate(total_spent=Sum('total'))
-        .order_by('-total_spent')[:5]
-    )
-    top_customers_labels = [entry['customer__name'] for entry in top_customers_qs]
-    top_customers_data = [float(entry['total_spent']) for entry in top_customers_qs]
-
-    # Weekly data
-    weekly_data = WeeklySalesData.objects.all()
-    weekly_labels = [entry.day for entry in weekly_data]
-    weekly_sales_data = [entry.sales for entry in weekly_data]
-    weekly_purchases_data = [entry.purchases for entry in weekly_data]
-
-    # Payments chart data
-    payment_labels = [(five_days_ago + timedelta(days=i)).strftime('%a') for i in range(5)]
-    payments_sent = []
-    payments_received = []
-    for i in range(5):
-        day = five_days_ago + timedelta(days=i)
-        sent = PaymentTransaction.objects.filter(date=day, type='sent').aggregate(Sum('amount'))['amount__sum'] or 0
-        received = PaymentTransaction.objects.filter(date=day, type='received').aggregate(Sum('amount'))['amount__sum'] or 0
-        payments_sent.append(sent)
-        payments_received.append(received)
-
-    # Sales target (static fallback or dynamic)
-    sales_target = SalesTarget.objects.last()
-    target_data = {
-    "weekly": sales_target.weekly if sales_target and sales_target.weekly else 500000,
-    "monthly": sales_target.monthly if sales_target and sales_target.monthly else 2000000,
-    "yearly": sales_target.yearly if sales_target and sales_target.yearly else 24000000,
-}
-
-    # Menus
-    menus = Menu.objects.prefetch_related('submenus').all()
-
-    return render(request, 'pos/dashboard.html', {
-        "menus": menus,
-        "total_sales": total_sales,
-        "total_purchases": total_purchases,
-        "total_sales_returns": total_sales_returns,
-        "total_purchase_returns": total_purchase_returns,
-        "low_stock_products": low_stock_products,
-        "top_products_labels": json.dumps(top_products_labels),
-        "top_products_data": json.dumps(top_products_data),
-        "weekly_labels": json.dumps(weekly_labels),
-        "weekly_sales_data": json.dumps(weekly_sales_data),
-        "weekly_purchases_data": json.dumps(weekly_purchases_data),
-        "top_customers_labels": json.dumps(top_customers_labels),
-        "top_customers_data": json.dumps(top_customers_data),
-        "sales_target": json.dumps(target_data),
-        "payment_labels": json.dumps(payment_labels),
-        "payments_sent": json.dumps(payments_sent),
-        "payments_received": json.dumps(payments_received),
-    })
-
-
-def dashboard_view(request):
-    menus = Menu.objects.prefetch_related('submenus').all()
-    countries = Country.objects.all()
-    return render(request, 'dashboard.html', {'countries': countries, 'menus': menus})
-
-def some_view(request):
-    ui_settings = UISettings.objects.first()
-    return render(request, 'your_template.html', {
-        'ui_settings': ui_settings,
-    })
-
-def signup_view(request):
-    if request.method == 'POST':
-        form = UserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            return redirect('pos:dashboard')
-    else:
-        form = UserCreationForm()
-    return render(request, 'pos/signup.html', {'form': form})
-
-def create_product(request):
-    if request.method == 'POST':
-        form = ProductForm(request.POST, request.FILES)
-        if form.is_valid():
-            form.save()
-            return redirect('product_list')  # adjust to your URL name
-    else:
-        form = ProductForm()
-    return render(request, 'create_product.html', {'form': form})
-
-def product_success(request):
-    return render(request, 'products/success.html')
-
-def product_list_view(request):
-    products = Product.objects.all()
-    categories = Product.objects.values_list('category', flat=True).distinct()
-    brands = Product.objects.values_list('brand', flat=True).distinct()
-    menus = Menu.objects.prefetch_related('submenus')
-
-    if request.method == 'POST':
-        form = ProductForm(request.POST, request.FILES)
-        if form.is_valid():
-            form.save()
-            return redirect('product_list')
-    else:
-        form = ProductForm()
-
-    search = request.GET.get('search')
-    category = request.GET.get('category')
-    brand = request.GET.get('brand')
-
-    if search:
-        products = products.filter(Q(name__icontains=search) | Q(product_code__icontains=search))
-    if category:
-        products = products.filter(category=category)
-    if brand:
-        products = products.filter(brand=brand)
-
+    low_stock = Product.objects.filter(quantity__lte=5).order_by('quantity')[:5]
+    recent_customers = Customer.objects.filter(sale__cashier=request.user).distinct().order_by('-id')[:5]
+    sales_target = SalesTarget.objects.first()
+    monthly_sales = Sale.objects.filter(
+        date__month=this_month, cashier=request.user
+    ).aggregate(Sum('total'))['total__sum'] or 0
+    sales = Sale.objects.select_related('customer').filter(cashier=request.user).order_by('-date')[:20]
+    best_selling_labels = [item['product__name'] for item in best_selling_items]
+    best_selling_quantities = [item['total_quantity'] for item in best_selling_items]
+    if not best_selling_labels:
+        best_selling_labels = ['No Sales Yet']
+        best_selling_quantities = [1]
+    # Add forms for modals
+    new_sale_form = NewSaleForm()
+    return_form = ReturnExchangeForm()
+    discount_form = DiscountForm()
+    receipt_form = ReceiptForm()
+    customer_form = CustomerForm()
     context = {
-        'form': form,
-        'products': products,
-        'categories': categories,
-        'brands': brands,
-        'menus': menus,
+        'total_sales': Sale.objects.aggregate(total=Sum('total'))['total'] or 0,
+        'total_sales_today': total_sales_today,
+        'transaction_count': transaction_count,
+        'sales': sales,
+        'best_selling_items': best_selling_items,
+        'low_stock': low_stock,
+        'recent_customers': recent_customers,
+        'sales_target': sales_target,
+        'monthly_sales': monthly_sales,
+        'best_selling_labels': best_selling_labels,
+        'best_selling_quantities': best_selling_quantities,
+        'site_settings': settings,
+        'form_new_sale': new_sale_form,
+        'form_return': return_form,
+        'form_discount': discount_form,
+        'form_receipt': receipt_form,
+        'customer_form': customer_form,
     }
-    return render(request, 'pos/product_list.html', context)
+    return context
 
-def export_products_excel(request):
-    return HttpResponse("Excel export not yet implemented.", content_type="text/plain")
 
-def export_products_pdf(request):
-    return HttpResponse("PDF export not yet implemented.", content_type="text/plain")
+# Update sales_dashboard to use the helper
+@login_required
+def sales_dashboard(request):
+    context = get_sales_dashboard_context(request)
+    return render(request, 'pos/sales_dashboard.html', context)
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
 
-def print_barcode_view(request):
+@csrf_exempt
+def create_sale(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            return JsonResponse({"success": False, "error": "Invalid JSON data."}, status=400)
+
+        customer_id = data.get("customer_id")
+        items = data.get("items")
+        amount_paid = data.get("amount")
+
+        if not items or not isinstance(items, list):
+            return JsonResponse({"success": False, "error": "No products added."}, status=400)
+
+        customer = Customer.objects.filter(id=customer_id).first() or Customer.objects.first()
+        sale = Sale.objects.create(customer=customer, total=0)
+        total = 0
+        out_of_stock = []
+
+        for item in items:
+            try:
+                product = Product.objects.get(id=item["product_id"])
+                quantity = int(item["quantity"])
+                if product.quantity < quantity:
+                    out_of_stock.append(product.name)
+                    continue
+                subtotal = product.price * quantity
+                SaleItem.objects.create(
+                    sale=sale,
+                    product=product,
+                    quantity=quantity,
+                    unit_price=product.price,
+                    subtotal=subtotal
+                )
+                product.quantity -= quantity
+                product.save()
+                total += subtotal
+            except Product.DoesNotExist:
+                continue
+
+        if out_of_stock:
+            sale.delete()
+            return JsonResponse({"success": False, "error": f"Not enough stock for: {', '.join(out_of_stock)}."}, status=400)
+
+        sale.total = total
+        sale.save()
+        receipt = Receipt.objects.create(sale=sale)
+        return JsonResponse({"success": True, "sale_id": sale.id})
+
+    return JsonResponse({"success": False, "error": "Invalid request method."}, status=405)
+
+
+@login_required
+def sale_detail(request, sale_id):
+    sale = Sale.objects.select_related('customer').get(id=sale_id)
+    items = SaleItem.objects.filter(sale=sale)
+    return render(request, 'pos/sale_detail.html', {'sale': sale, 'items': items})
+
+@login_required
+def supervisor_dashboard(request):
+    # Only allow supervisors (add your own check if needed)
+    if not hasattr(request.user, 'role') or request.user.role != 'supervisor':
+        return redirect('users:login')
+
+    # Salesperson performance
+    salespersons = CustomUser.objects.filter(role='salesperson')
+    performance = []
+    for sp in salespersons:
+        sales = Sale.objects.filter(cashier=sp)
+        total_sales = sales.aggregate(total=Sum('total'))['total'] or 0
+        num_sales = sales.count()
+        performance.append({
+            'salesperson': sp,
+            'total_sales': total_sales,
+            'num_sales': num_sales,
+        })
+
+    # Total sales and returns
+    total_sales = Sale.objects.aggregate(total=Sum('total'))['total'] or 0
+    total_returns = SalesReturn.objects.aggregate(total=Sum('amount'))['total'] or 0
+
+    # Products and stock
     products = Product.objects.all()
-    menus = Menu.objects.prefetch_related('submenus').all()
 
+    return render(request, 'pos/supervisor_dashboard.html', {
+        'performance': performance,
+        'total_sales': total_sales,
+        'total_returns': total_returns,
+        'products': products,
+    })
+
+@login_required
+def new_sale(request):
     if request.method == 'POST':
-        form = BarcodePrintForm(request.POST)
+        form = NewSaleForm(request.POST)
+        if form.is_valid():
+            product = form.cleaned_data['product']
+            quantity = form.cleaned_data['quantity']
+            if product.quantity < quantity:
+                messages.error(request, "Not enough stock for this product.")
+                return redirect('pos:new_sale')
+            # Deduct stock
+            product.quantity -= quantity
+            product.save()
+            # Create sale and sale item
+            sale = Sale.objects.create(customer=None, total=product.price * quantity, cashier=request.user)
+            SaleItem.objects.create(
+                sale=sale,
+                product=product,
+                quantity=quantity,
+                unit_price=product.price,
+                subtotal=product.price * quantity
+            )
+            # Generate receipt
+            receipt = Receipt.objects.create(sale=sale)
+            return redirect('pos:sale_receipt', sale_id=sale.id)
+    else:
+        form = NewSaleForm()
+    return render(request, 'pos/new_sale.html', {'form': form})
+
+
+@login_required
+def return_item(request):
+    """
+    Handles item returns/exchanges. On GET, displays form. On POST, processes the form.
+    """
+    if request.method == 'POST':
+        form = ReturnExchangeForm(request.POST)  # Add request.FILES if needed
+        if form.is_valid():
+            # Implement return logic here
+            # e.g., update inventory, mark order as returned, issue refund
+            return redirect('pos:sales_dashboard')
+    else:
+        form = ReturnExchangeForm()
+
+    context = {'form': form}
+    return render(request, 'pos/return_items.html', context)
+
+def add_customer(request):
+    if request.method == 'POST':
+        form = CustomerForm(request.POST)
         if form.is_valid():
             form.save()
-            return redirect('pos:print_barcode')  # reload after save
+            # After successful registration, reload dashboard with success message
+            messages.success(request, 'Customer registered successfully!')
+            return redirect('pos:sales_dashboard')
+        # If form is invalid, re-render dashboard with errors in modal
+        dashboard_context = get_sales_dashboard_context(request)
+        dashboard_context['customer_form'] = form
+        return render(request, 'pos/sales_dashboard.html', dashboard_context)
     else:
-        form = BarcodePrintForm()
+        return redirect('pos:sales_dashboard')
 
-    return render(request, 'pos/print_barcode.html', {
-        'menus': menus,
-        'form': form,
-    })
+def issue_receipt(request):
+    if request.method == 'POST':
+        form = ReceiptForm(request.POST)
+        if form.is_valid():
+            sale = form.cleaned_data['sale']
+            Receipt.objects.create(sale=sale)
+            return render(request, 'pos/receipt_issued.html', {'sale': sale})
+    else:
+        form = ReceiptForm()
+    return render(request, 'pos/issue_receipt.html', {'form': form})
 
+# views.py
+
+@login_required
+def return_exchange(request):
+    if request.method == 'POST':
+        form = ReturnExchangeForm(request.POST)
+        if form.is_valid():
+            sale = form.cleaned_data['sale']
+            return_type = form.cleaned_data['return_type']
+            new_product = form.cleaned_data.get('new_product')
+
+            sale.is_returned = True
+
+            if return_type == 'exchange':
+                sale.is_exchange = True
+                sale.exchange_for = new_product
+                # optional: charge/refund difference in price
+
+            sale.save()
+            return redirect('pos:sales_dashboard')
+    else:
+        form = ReturnExchangeForm()
+
+    return render(request, 'pos/return_exchange.html', {'form': form})
+
+
+# ✅ Second one (decorated, newer)
+@permission_required('pos.can_apply_discount', raise_exception=True)
+def apply_discount(request):
+    if request.method == 'POST':
+        form = DiscountForm(request.POST)
+        if form.is_valid():
+            discount = form.save()
+
+            # Apply discounted price to the product
+            product = discount.product
+            discount_amount = product.price * (discount.percentage / 100)
+            new_price = product.price - discount_amount
+            product.price = new_price
+            product.save()
+
+            messages.success(request, f"{discount.percentage}% discount applied to {product.name}. New price: {new_price:.2f}")
+            return redirect('pos:sales_dashboard')
+    else:
+        form = DiscountForm()
+
+    return render(request, 'pos/apply_discount.html', {'form': form})
+
+def search_product(request):
+    query = request.GET.get("query", "")
+    products = Product.objects.filter(name__icontains=query) | Product.objects.filter(barcode__icontains=query)
+    data = [
+        {
+            "id": p.id,
+            "name": p.name,
+            "price": p.price,
+            "barcode": p.barcode,
+            "stock": p.stock
+        }
+        for p in products
+    ]
+    return JsonResponse(data, safe=False)
+
+@csrf_exempt
 def create_sale(request):
-    if request.method == 'POST':
-        # Create a basic Sale record (customize this with your own form and logic)
-        total = float(request.POST.get('total', 0))  # or calculate based on items
-        sale = Sale.objects.create(total=total)
-        update_weekly_data('sale', sale.total)
-        return redirect('pos:dashboard')
-    return HttpResponse("Sale form not implemented.")
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            return JsonResponse({"success": False, "error": "Invalid JSON data."}, status=400)
 
-def create_purchase(request):
-    if request.method == 'POST':
-        total = float(request.POST.get('total', 0))
-        purchase = Purchase.objects.create(total=total)
-        update_weekly_data('purchase', purchase.total)
-        return redirect('pos:dashboard')
-    return HttpResponse("Purchase form not implemented.")
+        customer_id = data.get("customer_id")
+        items = data.get("items")
+        amount_paid = data.get("amount")
 
-def product_cards(request):
-    products = Product.objects.all()
-    return render(request, 'product_cards.html', {'products': products})
+        if not items or not isinstance(items, list):
+            return JsonResponse({"success": False, "error": "No products added."}, status=400)
 
+        customer = Customer.objects.filter(id=customer_id).first() or Customer.objects.first()
+        sale = Sale.objects.create(customer=customer, total=0)
+        total = 0
+        out_of_stock = []
 
-@login_required
-def create_order(request):
-    customer, _ = Customer.objects.get_or_create(user=request.user)
-    if request.method == 'POST':
-        cust_form = CustomerForm(request.POST, instance=customer)
-        formset = OrderItemFormSet(request.POST)
-        if cust_form.is_valid() and formset.is_valid():
-            cust_form.save()
-            order = Order.objects.create(customer=customer)
-            items = formset.save(commit=False)
-            for item in items:
-                item.order = order
-                item.unit_price = item.product.price
-                item.save()
-            return redirect('order_summary', order_id=order.id)
+        for item in items:
+            try:
+                product = Product.objects.get(id=item["product_id"])
+                quantity = int(item["quantity"])
+                if product.quantity < quantity:
+                    out_of_stock.append(product.name)
+                    continue
+                subtotal = product.price * quantity
+                SaleItem.objects.create(
+                    sale=sale,
+                    product=product,
+                    quantity=quantity,
+                    unit_price=product.price,
+                    subtotal=subtotal
+                )
+                product.quantity -= quantity
+                product.save()
+                total += subtotal
+            except Product.DoesNotExist:
+                continue
+
+        if out_of_stock:
+            sale.delete()
+            return JsonResponse({"success": False, "error": f"Not enough stock for: {', '.join(out_of_stock)}."}, status=400)
+
+        sale.total = total
+        sale.save()
+        receipt = Receipt.objects.create(sale=sale)
+        return JsonResponse({"success": True, "sale_id": sale.id})
+
+    return JsonResponse({"success": False, "error": "Invalid request method."}, status=405)
+def sale_receipt(request, sale_id):
+    sale = get_object_or_404(Sale, pk=sale_id)
+    return render(request, 'pos/receipt.html', {'sale': sale})
+
+@require_GET
+def product_search(request):
+    query = request.GET.get("query", "").strip()
+    try:
+        product = Product.objects.get(barcode=query)
+    except Product.DoesNotExist:
+        try:
+            product = Product.objects.filter(name__icontains=query).first()
+        except Product.DoesNotExist:
+            product = None
+
+    if product:
+        return JsonResponse({
+            "product": {
+                "id": product.id,
+                "name": product.name,
+                "price": float(product.price),
+                "stock": product.stock
+            }
+        })
     else:
-        cust_form = CustomerForm(instance=customer)
-        formset = OrderItemFormSet()
-    return render(request, 'orders/create_order.html', {
-        'cust_form': cust_form,
-        'formset': formset,
-    })
+        return JsonResponse({"product": None})
 
-@login_required
-def order_summary(request, order_id):
-    order = Order.objects.get(id=order_id, customer__user=request.user)
-    return render(request, 'orders/order_summary.html', {'order': order})
+def new_pos_sale(request):
+    return render(request, 'pos/new_pos_sale.html')
 
+
+from django.http import JsonResponse
+
+def ajax_get_product(request):
+    barcode = request.GET.get('barcode')
+    if not barcode:
+        return JsonResponse({'success': False, 'error': 'No barcode provided'})
+    try:
+        product = Product.objects.get(code=barcode)
+        return JsonResponse({'success': True, 'name': product.name})
+    except Product.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Product not found'})

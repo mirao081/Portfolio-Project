@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Supervisor Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f8; }
+        .container { background: #fff; margin: 40px auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); width: 900px; }
+        h2 { color: #2d3e50; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #f4f6f8; }
+        .section { margin-bottom: 40px; }
+        a.button { background: #1976d2; color: #fff; padding: 6px 16px; border-radius: 6px; text-decoration: none; }
+        a.button:hover { background: #0d47a1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Supervisor Dashboard</h2>
+        <div class="section">
+            <h3>Salesperson Performance</h3>
+            <table>
+                <tr>
+                    <th>Salesperson</th>
+                    <th>Total Sales</th>
+                    <th>Number of Sales</th>
+                </tr>
+                {% for p in performance %}
+                <tr>
+                    <td>{{ p.salesperson.username }}</td>
+                    <td>₦{{ p.total_sales }}</td>
+                    <td>{{ p.num_sales }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3">No salespersons found.</td></tr>
+                {% endfor %}
+            </table>
+        </div>
+        <div class="section">
+            <h3>Totals</h3>
+            <p><strong>Total Sales:</strong> ₦{{ total_sales }}</p>
+            <p><strong>Total Returns:</strong> ₦{{ total_returns }}</p>
+        </div>
+        <div class="section">
+            <h3>Products & Stock</h3>
+            <a class="button" href="{% url 'inventory:add_product' %}">Add Product</a>
+            <table>
+                <tr>
+                    <th>Name</th>
+                    <th>Stock</th>
+                    <th>Price</th>
+                </tr>
+                {% for product in products %}
+                <tr>
+                    <td>{{ product.name }}</td>
+                    <td>{{ product.quantity }}</td>
+                    <td>₦{{ product.price }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3">No products found.</td></tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+</body>
+</html>

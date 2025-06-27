@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sale Details</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f8; }
+        .container { background: #fff; margin: 40px auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); width: 600px; text-align: center; }
+        h2 { color: #2d3e50; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #f4f6f8; }
+        .summary { margin: 20px 0; }
+        a { color: #1976d2; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Sale Details</h2>
+        <div class="summary">
+            <strong>Date:</strong> {{ sale.date|date:"Y-m-d H:i" }}<br>
+            <strong>Customer:</strong> {{ sale.customer }}<br>
+            <strong>Total:</strong> ₦{{ sale.total }}
+        </div>
+        <h3>Items</h3>
+        <table>
+            <tr>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Subtotal</th>
+            </tr>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.product }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>₦{{ item.unit_price }}</td>
+                <td>₦{{ item.subtotal }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4">No items for this sale.</td></tr>
+            {% endfor %}
+        </table>
+        <p><a href="{% url 'pos:sales_dashboard' %}">Back to Dashboard</a></p>
+    </div>
+</body>
+</html> 

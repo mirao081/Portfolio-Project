@@ -1,0 +1,6 @@
+{% extends 'pos/sales_dashboard.html' %}
+{% block content %}
+<h2>Receipt Issued</h2>
+<p>Receipt for sale of {{ sale.product.name }} (x{{ sale.quantity }})</p>
+<p>Total: ${{ sale.total_price }}</p>
+{% endblock %}
