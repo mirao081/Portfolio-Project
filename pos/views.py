@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required,permission_required
+from django.contrib.auth.decorators import login_required,permission_required,user_passes_test
+
 from django.db.models import Sum
 from .models import Sale, SaleItem, Customer, Product, SalesReturn,SalesTarget, Notification
 from users.models import CustomUser
@@ -16,6 +17,10 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
+from .models import Menu
+from django.urls import reverse
+
+
 
 
 def get_sales_dashboard_context(request):
@@ -86,7 +91,7 @@ def create_sale(request):
     if request.method == "POST":
         try:
             data = json.loads(request.body)
-        except Exception:
+        except json.JSONDecodeError:
             return JsonResponse({"success": False, "error": "Invalid JSON data."}, status=400)
 
         customer_id = data.get("customer_id")
@@ -97,9 +102,10 @@ def create_sale(request):
             return JsonResponse({"success": False, "error": "No products added."}, status=400)
 
         customer = Customer.objects.filter(id=customer_id).first() or Customer.objects.first()
-        sale = Sale.objects.create(customer=customer, total=0)
+        sale = Sale.objects.create(customer=customer, total=0, cashier=request.user)
         total = 0
         out_of_stock = []
+        item_summary = []
 
         for item in items:
             try:
@@ -109,6 +115,8 @@ def create_sale(request):
                     out_of_stock.append(product.name)
                     continue
                 subtotal = product.price * quantity
+
+                # Save SaleItem
                 SaleItem.objects.create(
                     sale=sale,
                     product=product,
@@ -116,9 +124,20 @@ def create_sale(request):
                     unit_price=product.price,
                     subtotal=subtotal
                 )
+
+                # Update stock
                 product.quantity -= quantity
                 product.save()
+
+                # Track for receipt
                 total += subtotal
+                item_summary.append({
+                    "product": product.name,
+                    "quantity": quantity,
+                    "unit_price": float(product.price),
+                    "subtotal": float(subtotal)
+                })
+
             except Product.DoesNotExist:
                 continue
 
@@ -128,8 +147,15 @@ def create_sale(request):
 
         sale.total = total
         sale.save()
-        receipt = Receipt.objects.create(sale=sale)
-        return JsonResponse({"success": True, "sale_id": sale.id})
+        Receipt.objects.create(sale=sale)
+
+        return JsonResponse({
+            "success": True,
+            "sale_id": sale.id,
+            "customer": customer.name,
+            "items": item_summary,
+            "total": float(total)
+        })
 
     return JsonResponse({"success": False, "error": "Invalid request method."}, status=405)
 
@@ -140,37 +166,84 @@ def sale_detail(request, sale_id):
     items = SaleItem.objects.filter(sale=sale)
     return render(request, 'pos/sale_detail.html', {'sale': sale, 'items': items})
 
+
 @login_required
 def supervisor_dashboard(request):
-    # Only allow supervisors (add your own check if needed)
+    # Restrict access to supervisors only
     if not hasattr(request.user, 'role') or request.user.role != 'supervisor':
         return redirect('users:login')
 
-    # Salesperson performance
+    # Get all salespersons and calculate performance stats
     salespersons = CustomUser.objects.filter(role='salesperson')
     performance = []
+
     for sp in salespersons:
         sales = Sale.objects.filter(cashier=sp)
         total_sales = sales.aggregate(total=Sum('total'))['total'] or 0
         num_sales = sales.count()
+        total_quantity = SaleItem.objects.filter(sale__cashier=sp).aggregate(qty=Sum('quantity'))['qty'] or 0
+
         performance.append({
             'salesperson': sp,
             'total_sales': total_sales,
             'num_sales': num_sales,
+            'total_quantity': total_quantity,
         })
 
-    # Total sales and returns
+    performance.sort(key=lambda x: x['total_sales'], reverse=True)
+
+    # Summary statistics
     total_sales = Sale.objects.aggregate(total=Sum('total'))['total'] or 0
     total_returns = SalesReturn.objects.aggregate(total=Sum('amount'))['total'] or 0
-
-    # Products and stock
     products = Product.objects.all()
+    recent_returns = SalesReturn.objects.select_related('sale', 'sale__customer').order_by('-sale__timestamp')[:10]
 
+    # Site Settings (for logo, etc.)
+    site_settings = SiteSettings.objects.first()
+
+    # Menus with submenus, including dynamically injected submenus under "Transactions"
+    menus_qs = Menu.objects.prefetch_related('submenus').order_by('order')
+    menus = []
+
+    for menu in menus_qs:
+        submenu_items = list(menu.submenus.all())  # existing submenus from DB
+
+        # Inject default submenu items under "Transactions"
+        if menu.name.lower() == 'transactions':
+            existing_names = [sm.name.lower() for sm in submenu_items]
+
+            default_submenus = [
+                {'name': 'Sales', 'url': reverse('sales:sales_list'), 'icon': 'icons/sales.png'},
+                {'name': 'Purchases', 'url': reverse('purchases:purchases_list'), 'icon': 'icons/purchases.png'},
+                {'name': 'Sales Return', 'url': reverse('sales:sales_returns'), 'icon': 'icons/sales_return.png'},
+                {'name': 'Purchases Return', 'url': reverse('purchases:purchases_returns'), 'icon': 'icons/purchases_return.png'},
+            ]
+
+            for item in default_submenus:
+                if item['name'].lower() not in existing_names:
+                    # Dynamically create a pseudo-submenu object to match template expectations
+                    submenu_items.append(type('SubmenuObject', (), {
+                        'name': item['name'],
+                        'url': item['url'],
+                        'icon': item['icon']
+                    })())
+
+        # Append menu and submenus (as objects) to context
+        menus.append({
+            'id': menu.id,
+            'name': menu.name,
+            'submenus': submenu_items
+        })
+
+    # Render dashboard with all necessary context
     return render(request, 'pos/supervisor_dashboard.html', {
         'performance': performance,
         'total_sales': total_sales,
         'total_returns': total_returns,
         'products': products,
+        'recent_returns': recent_returns,
+        'site_settings': site_settings,
+        'menus': menus,
     })
 
 @login_required

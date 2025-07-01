@@ -1,174 +1,225 @@
-{% extends "base.html" %}
-{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>New POS Sale</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+      display: none;
+    }
+    .modal-content {
+      background: white;
+      padding: 20px;
+      width: 80%;
+      max-width: 600px;
+      margin: 10% auto;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    button {
+      margin-top: 15px;
+      margin-right: 10px;
+    }
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      .modal-content, .modal-content * {
+        visibility: visible;
+      }
+      .modal-content {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
 
-{% block content %}
-<h2>Point of Sale (New Sale)</h2>
+  <h1>New POS Sale</h1>
 
-<form id="pos-form">
-  {% csrf_token %}
-  <input type="text" id="product-search" placeholder="Scan or type product name/barcode">
+  <!-- Product input form -->
+  <div>
+    <label>Customer ID:</label>
+    <input type="number" id="customer-id" placeholder="Enter customer ID"><br><br>
 
-  <table id="sale-items">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Qty</th>
-        <th>Price</th>
-        <th>Total</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+    <label>Product ID:</label>
+    <input type="number" id="product-id" placeholder="Enter product ID"><br><br>
 
-  <h3>Total: ₦<span id="total-amount">0.00</span></h3>
-  <button type="button" id="complete-sale" class="btn btn-success">Submit & Generate Invoice</button>
-</form>
+    <label>Quantity:</label>
+    <input type="number" id="quantity" placeholder="Enter quantity"><br><br>
 
-<!-- Sale Summary Modal -->
-<div class="modal fade" id="saleSummaryModal" tabindex="-1" aria-labelledby="saleSummaryModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
+    <label>Amount Paid:</label>
+    <input type="number" id="amount-paid" placeholder="Enter amount paid"><br><br>
+
+    <button onclick="addToCart()">Add to Cart</button>
+    <button onclick="submitSale()">Submit Sale</button>
+  </div>
+
+  <!-- Cart display -->
+  <h3>Cart Items</h3>
+  <ul id="cart-items"></ul>
+
+  <!-- Receipt Modal -->
+  <div id="receipt-modal" class="modal">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="saleSummaryModalLabel">Sale Summary</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <table class="table" id="summary-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Qty</th>
-              <th>Price</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-        <div class="text-end">
-          <strong>Total: ₦<span id="summary-total">0.00</span></strong>
-        </div>
-        <div class="mb-3 mt-3">
-          <label for="payment-amount" class="form-label">Payment Amount</label>
-          <input type="number" min="0" step="0.01" class="form-control" id="payment-amount" required>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-success" id="confirm-pay">Confirm & Pay</button>
-      </div>
+      <h2>Receipt</h2>
+      <p><strong>Customer:</strong> <span id="receipt-customer"></span></p>
+      <table>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Qty</th>
+            <th>Unit Price</th>
+            <th>Subtotal</th>
+          </tr>
+        </thead>
+        <tbody id="receipt-items"></tbody>
+      </table>
+      <p><strong>Total:</strong> ₦<span id="receipt-total"></span></p>
+      <button onclick="printReceipt()">Print Receipt</button>
+      <button onclick="closeReceiptModal()">Close</button>
     </div>
   </div>
-</div>
 
-<script>
-const cartItems = [];
-let totalAmount = 0;
-let selectedCustomerId = 1; // Replace with real customer selector if needed
+  <script>
+    const cartItems = [];
 
-function updateTotalDisplay() {
-  document.getElementById("total-amount").textContent = totalAmount.toFixed(2);
-}
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
 
-function addToCart(product) {
-  const row = document.createElement("tr");
-  const subtotal = product.price * product.quantity;
+    function addToCart() {
+      const productId = document.getElementById('product-id').value;
+      const quantity = document.getElementById('quantity').value;
 
-  row.innerHTML = `
-    <td>${product.name}</td>
-    <td>${product.quantity}</td>
-    <td>₦${product.price}</td>
-    <td>₦${subtotal.toFixed(2)}</td>
-  `;
+      if (!productId || !quantity) {
+        alert("Please enter product ID and quantity");
+        return;
+      }
 
-  document.querySelector("#sale-items tbody").appendChild(row);
+      // Dummy lookup (in real case, fetch product details from DB)
+      const dummyPrice = 100;
 
-  cartItems.push({
-    product_id: product.id,
-    quantity: product.quantity,
-    name: product.name,
-    price: product.price
-  });
+      cartItems.push({
+        product_id: parseInt(productId),
+        quantity: parseInt(quantity),
+        unit_price: dummyPrice,
+        subtotal: dummyPrice * quantity,
+        product: "Product " + productId
+      });
 
-  totalAmount += subtotal;
-  updateTotalDisplay();
-}
+      displayCart();
+      document.getElementById('product-id').value = '';
+      document.getElementById('quantity').value = '';
+    }
 
-// Example usage: Replace with real AJAX product lookup
-document.getElementById("product-search").addEventListener("keypress", function(e) {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    const nameOrBarcode = this.value;
+    function displayCart() {
+      const list = document.getElementById('cart-items');
+      list.innerHTML = '';
+      cartItems.forEach(item => {
+        const li = document.createElement('li');
+        li.textContent = `${item.product} - Qty: ${item.quantity}, Subtotal: ₦${item.subtotal}`;
+        list.appendChild(li);
+      });
+    }
 
-    fetch(`/pos/api/search/?query=${nameOrBarcode}`)
-      .then(res => res.json())
+    function submitSale() {
+      const customerId = document.getElementById('customer-id').value;
+      const amount = parseFloat(document.getElementById('amount-paid').value);
+
+      if (!customerId || cartItems.length === 0 || !amount) {
+        alert("Fill in all fields and add products to cart");
+        return;
+      }
+
+      fetch('/create_sale/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+          customer_id: customerId,
+          amount: amount,
+          items: cartItems.map(item => ({
+            product_id: item.product_id,
+            quantity: item.quantity
+          }))
+        })
+      })
+      .then(response => response.json())
       .then(data => {
-        if (data.product) {
-          const quantity = 1;
-          addToCart({
-            id: data.product.id,
-            name: data.product.name,
-            price: data.product.price,
-            quantity: quantity
-          });
-          this.value = ""; // Clear search input
+        console.log('Backend response:', data); // Debugging
+        if (data.success) {
+          showReceipt(data); // Use backend receipt data
+          cartItems.length = 0;
+          displayCart();
         } else {
-          alert("Product not found.");
+          alert("Error: " + data.error);
         }
       });
-  }
-});
-
-// Show modal with summary on submit
-const summaryModal = new bootstrap.Modal(document.getElementById('saleSummaryModal'));
-const summaryTableBody = document.querySelector('#summary-table tbody');
-const summaryTotal = document.getElementById('summary-total');
-const paymentAmountInput = document.getElementById('payment-amount');
-
-document.getElementById("complete-sale").addEventListener("click", function () {
-  // Fill modal with cart items
-  summaryTableBody.innerHTML = '';
-  let total = 0;
-  cartItems.forEach(item => {
-    const subtotal = item.price * item.quantity;
-    total += subtotal;
-    summaryTableBody.innerHTML += `<tr><td>${item.name}</td><td>${item.quantity}</td><td>₦${item.price}</td><td>₦${subtotal.toFixed(2)}</td></tr>`;
-  });
-  summaryTotal.textContent = total.toFixed(2);
-  paymentAmountInput.value = total.toFixed(2);
-  summaryModal.show();
-});
-
-document.getElementById("confirm-pay").addEventListener("click", function () {
-  const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]").value;
-  const paymentAmount = parseFloat(paymentAmountInput.value);
-  if (isNaN(paymentAmount) || paymentAmount < totalAmount) {
-    alert("Payment amount is insufficient.");
-    return;
-  }
-  fetch("/pos/create-sale/", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-CSRFToken": csrfToken,
-    },
-    body: JSON.stringify({
-      customer_id: selectedCustomerId,
-      items: cartItems,
-      amount: totalAmount,
-    }),
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      window.location.href = `/pos/receipt/${data.sale_id}/`;
-    } else {
-      alert("Error completing sale.");
     }
-  })
-  .catch(error => {
-    console.error("Error:", error);
-    alert("Sale failed.");
-  });
-});
-</script>
-{% endblock %}
+
+    function showReceipt(data) {
+      document.getElementById('receipt-customer').textContent = data.customer;
+      document.getElementById('receipt-total').textContent = data.total.toFixed(2);
+
+      const receiptItems = document.getElementById('receipt-items');
+      receiptItems.innerHTML = '';
+      data.items.forEach(item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${item.product}</td>
+          <td>${item.quantity}</td>
+          <td>₦${item.unit_price.toFixed(2)}</td>
+          <td>₦${item.subtotal.toFixed(2)}</td>
+        `;
+        receiptItems.appendChild(row);
+      });
+
+      document.getElementById('receipt-modal').style.display = 'block';
+    }
+
+    function closeReceiptModal() {
+      document.getElementById('receipt-modal').style.display = 'none';
+    }
+
+    function printReceipt() {
+      window.print();
+    }
+  </script>
+
+</body>
+</html>

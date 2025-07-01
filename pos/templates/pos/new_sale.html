@@ -1,13 +1,176 @@
 {% extends 'pos/base.html' %}
+{% load static %}
 
 {% block title %}New Sale{% endblock %}
 
 {% block content %}
 <h2>🛒 New Sale</h2>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="button" id="review-sale-btn">Submit Sale</button>
 
-</form>
+<!-- Input Section -->
+<div>
+  <label>Customer ID:</label>
+  <input type="number" id="customer-id" placeholder="Enter customer ID"><br><br>
+
+  <label>Product ID:</label>
+  <input type="number" id="product-id" placeholder="Enter product ID"><br><br>
+
+  <label>Quantity:</label>
+  <input type="number" id="quantity" placeholder="Enter quantity"><br><br>
+
+  <label>Amount Paid:</label>
+  <input type="number" id="amount-paid" placeholder="Enter amount paid"><br><br>
+
+  <button onclick="addToCart()">Add to Cart</button>
+  <button onclick="submitSale()">Submit Sale</button>
+</div>
+
+<!-- Cart List -->
+<h3>Cart</h3>
+<ul id="cart-items"></ul>
+
+<!-- Invoice Modal -->
+<div id="receipt-modal" class="modal">
+  <div class="modal-content">
+    <h2>Invoice Receipt</h2>
+    <p><strong>Customer:</strong> <span id="receipt-customer"></span></p>
+    <table>
+      <thead>
+        <tr><th>Product</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr>
+      </thead>
+      <tbody id="receipt-items"></tbody>
+    </table>
+    <p><strong>Total:</strong> ₦<span id="receipt-total"></span></p>
+    <button onclick="printReceipt()">Print</button>
+    <button onclick="closeReceiptModal()">Close</button>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const cartItems = [];
+
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  function addToCart() {
+    const productId = document.getElementById('product-id').value;
+    const quantity = document.getElementById('quantity').value;
+
+    if (!productId || !quantity) {
+      alert("Enter product ID and quantity");
+      return;
+    }
+
+    const unitPrice = 100; // dummy price
+    const subtotal = unitPrice * quantity;
+
+    cartItems.push({
+      product_id: parseInt(productId),
+      quantity: parseInt(quantity),
+      product: "Product " + productId,
+      unit_price: unitPrice,
+      subtotal: subtotal
+    });
+
+    updateCartDisplay();
+    document.getElementById('product-id').value = '';
+    document.getElementById('quantity').value = '';
+  }
+
+  function updateCartDisplay() {
+    const list = document.getElementById('cart-items');
+    list.innerHTML = '';
+    cartItems.forEach(item => {
+      const li = document.createElement('li');
+      li.textContent = `${item.product} - Qty: ${item.quantity}, ₦${item.subtotal}`;
+      list.appendChild(li);
+    });
+  }
+
+  function submitSale() {
+    const customerId = document.getElementById('customer-id').value;
+    const amount = parseFloat(document.getElementById('amount-paid').value);
+
+    if (!customerId || !amount || cartItems.length === 0) {
+      alert("Fill in all fields and add items");
+      return;
+    }
+
+    const payload = {
+      customer_id: parseInt(customerId),
+      amount: amount,
+      items: cartItems.map(item => ({
+        product_id: item.product_id,
+        quantity: item.quantity
+      }))
+    };
+
+    fetch("{% url 'pos:create_sale' %}", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showReceipt(customerId);
+      } else {
+        alert("Error: " + data.error);
+      }
+    })
+    .catch(error => {
+      alert("Failed to submit sale.");
+      console.error(error);
+    });
+  }
+
+  function showReceipt(customerId) {
+    const total = cartItems.reduce((sum, i) => sum + i.subtotal, 0);
+    document.getElementById('receipt-customer').textContent = `Customer ${customerId}`;
+    document.getElementById('receipt-total').textContent = total.toFixed(2);
+
+    const tbody = document.getElementById('receipt-items');
+    tbody.innerHTML = '';
+    cartItems.forEach(item => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${item.product}</td>
+        <td>${item.quantity}</td>
+        <td>₦${item.unit_price}</td>
+        <td>₦${item.subtotal}</td>
+      `;
+      tbody.appendChild(row);
+    });
+
+    document.getElementById('receipt-modal').style.display = 'block';
+    cartItems.length = 0;
+    updateCartDisplay();
+    document.getElementById('amount-paid').value = '';
+  }
+
+  function closeReceiptModal() {
+    document.getElementById('receipt-modal').style.display = 'none';
+  }
+
+  function printReceipt() {
+    window.print();
+  }
+</script>
 {% endblock %}

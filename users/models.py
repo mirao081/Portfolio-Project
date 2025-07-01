@@ -8,7 +8,7 @@ class CustomUser(AbstractUser):
         ('supervisor', 'Supervisor'),
         ('salesperson', 'Salesperson'),
     ]
-    role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='salesperson')
+    role = models.CharField(max_length=20, choices=[('supervisor', 'Supervisor'), ('salesperson', 'Salesperson')])
     is_approved = models.BooleanField(default=False)  # Only approved users can log in
     profile_picture = models.ImageField(upload_to='profile_pics/', null=True, blank=True)
 

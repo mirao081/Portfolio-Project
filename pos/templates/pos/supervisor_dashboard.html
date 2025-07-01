@@ -1,66 +1,430 @@
 <!DOCTYPE html>
 <html>
+{% load static %}
 <head>
     <title>Supervisor Dashboard</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f8; }
-        .container { background: #fff; margin: 40px auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); width: 900px; }
-        h2 { color: #2d3e50; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
-        th { background: #f4f6f8; }
-        .section { margin-bottom: 40px; }
-        a.button { background: #1976d2; color: #fff; padding: 6px 16px; border-radius: 6px; text-decoration: none; }
-        a.button:hover { background: #0d47a1; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f6f8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: #273c75;
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1002;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .menu-toggle {
+            font-size: 24px;
+            cursor: pointer;
+            margin-left: 20px;
+        }
+
+        nav.sidebar {
+            display: none;
+            position: fixed;
+            top: 80px;
+            left: 0;
+            width: 180px;
+            height: calc(100% - 80px);
+            background: #273c75;
+            color: white;
+            padding: 10px 0;
+            overflow-y: auto;
+            z-index: 1001;
+        }
+
+        .sidebar ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar ul li a {
+            color: white;
+            display: block;
+            padding: 12px 20px;
+            text-decoration: none;
+        }
+
+        .submenu-container {
+            display: none;
+            position: relative;
+            margin-left: 10px;
+            margin-top: 100px;
+            padding: 0;
+            transition: margin-left 0.3s ease;
+             z-index: 1003;
+        }
+        #submenu-LAST_INDEX {
+            position: fixed; /* or absolute */
+            top: 80px;      /* align below header */
+            left: 180px;    /* right of sidebar */
+            max-height: calc(100% - 80px);
+            overflow-y: auto;
+            background: aliceblue;
+            color: #000;
+            padding: 15px;
+            border-radius: 8px;
+            width: 300px;  /* or what fits your design */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1003;
+            display: none; /* default hidden */
+            flex-direction: column;
+            gap: 10px;
+        }
+        #submenu-LAST_INDEX.active {
+            display: flex;
+        }
+
+        .submenu-row {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .submenu-row.active {
+            display: flex;
+        }
+
+        .submenu-row li {
+            list-style: none;
+        }
+
+        #submenu-0 a {
+            display: block;
+            background: #ffffff;
+            color: #2d3e50;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            width: 160px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-decoration: none;
+            font-weight: 500;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+
+        #submenu-0 a:hover {
+            background-color: #f9fbfc;
+            transform: translateY(-3px);
+        }
+
+        .submenu-row:not(#submenu-0) a {
+            display: block;
+            background: transparent !important;
+            color: #2d3e50;
+            border-radius: 0 !important;
+            padding: 0 !important;
+            width: auto !important;
+            box-shadow: none !important;
+            text-decoration: underline;
+            font-weight: normal;
+            transition: none;
+        }
+
+        .submenu-row:not(#submenu-0) a:hover {
+            background-color: transparent !important;
+            transform: none !important;
+            color: #2980b9;
+            text-decoration: none;
+        }
+
+        #submenu-0.active {
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .submenu-row img {
+            display: block;
+            margin: 0 auto 10px;
+            height: 30px;
+        }
+
+        .submenu-amount {
+            font-size: 14px;
+            color: #555;
+            margin-top: 5px;
+        }
+
+        main#content-wrapper {
+            margin-top: 100px;
+            padding: 0 40px 40px 40px;
+            transition: margin-left 0.3s ease;
+        }
+
+        body.sidebar-visible #content-wrapper {
+            margin-left: 190px;
+        }
+
+        body.sidebar-visible .submenu-container {
+            margin-left: 180px;
+        }
+
+        h3 {
+            margin-top: 0;
+            color: #2d3e50;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            border: 3px solid black;
+        }
+
+        th, td {
+            padding: 10px;
+            border: 2px solid black; /* thick black border for table cells */
+            text-align: left;
+        }
+
+        th {
+            background: #f4f6f8;
+        }
+
+        .low-stock {
+            background-color: #fff3cd;
+        }
+
+        .logout {
+            background: crimson;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+
+        .button {
+            background: #2980b9;
+            color: white;
+            padding: 8px 14px;
+            border-radius: 4px;
+            text-decoration: none;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Supervisor Dashboard</h2>
-        <div class="section">
+
+<!-- Header -->
+<div class="header">
+    <div style="display: flex; align-items: center;">
+        {% if site_settings and site_settings.logo %}
+            <img src="{{ site_settings.logo.url }}" alt="Logo" style="height: 50px; border-radius: 50%; margin-right: 20px;">
+        {% endif %}
+        <h1>Supervisor Dashboard</h1>
+        <span class="menu-toggle" onclick="toggleSidebar()">☰</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 20px;">
+        <select style="padding: 6px 10px; border-radius: 5px; margin-right: 10px;">
+            <option>ENG</option>
+        </select>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            {% if request.user.profile_picture %}
+                <img src="{{ request.user.profile_picture.url }}" alt="Profile" style="width: 40px; height: 40px; border-radius: 50%;">
+            {% endif %}
+            <div>
+                <div style="font-weight: bold;">{{ request.user.get_full_name|default:request.user.username }}</div>
+                <div style="font-size: 12px;">{{ request.user.role|capfirst }}</div>
+            </div>
+            <a href="{% url 'users:profile_edit' %}" style="color: white;">Edit Profile</a>
+            <a href="{% url 'users:logout' %}" class="logout">Logout</a>
+        </div>
+    </div>
+</div>
+
+<!-- Sidebar -->
+<nav id="sidebar" class="sidebar">
+    <ul>
+        {% for menu in menus %}
+        <li><a href="#" onclick="showSubmenu({{ forloop.counter0 }}); return false;">{{ menu.name }}</a></li>
+        {% endfor %}
+    </ul>
+</nav>
+
+<!-- Submenus -->
+<div class="submenu-container" id="submenu-container">
+    {% for menu in menus %}
+    <ul class="submenu-row" id="submenu-{{ forloop.counter0 }}">
+        {% for submenu in menu.submenus %}
+        <li>
+            <a href="{{ submenu.url }}">
+                {{ submenu.name }}
+                {% if menu.name == "Dashboard" %}
+                    <div class="submenu-amount">${{ submenu.amount|default:"0" }}</div>
+                {% endif %}
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endfor %}
+</div>
+
+<!-- Main Content Wrapper -->
+<main id="content-wrapper">
+
+    <div id="main-content-with-performance">
+
+        <!-- Salesperson Performance -->
+        <div id="salesperson-performance" style="margin-bottom: 40px;">
             <h3>Salesperson Performance</h3>
             <table>
-                <tr>
-                    <th>Salesperson</th>
-                    <th>Total Sales</th>
-                    <th>Number of Sales</th>
-                </tr>
+                <thead>
+                    <tr>
+                        <th>Salesperson</th>
+                        <th>Total Sales</th>
+                        <th>Number of Sales</th>
+                        <th>Quantity Sold</th>
+                    </tr>
+                </thead>
+                <tbody>
                 {% for p in performance %}
-                <tr>
-                    <td>{{ p.salesperson.username }}</td>
-                    <td>₦{{ p.total_sales }}</td>
-                    <td>{{ p.num_sales }}</td>
-                </tr>
+                    <tr>
+                        <td>{{ p.salesperson.username }}</td>
+                        <td>₦{{ p.total_sales }}</td>
+                        <td>{{ p.num_sales }}</td>
+                        <td>{{ p.total_quantity }}</td>
+                    </tr>
                 {% empty %}
-                <tr><td colspan="3">No salespersons found.</td></tr>
+                    <tr><td colspan="4">No salespersons found.</td></tr>
                 {% endfor %}
+                </tbody>
             </table>
-        </div>
-        <div class="section">
+
             <h3>Totals</h3>
             <p><strong>Total Sales:</strong> ₦{{ total_sales }}</p>
             <p><strong>Total Returns:</strong> ₦{{ total_returns }}</p>
         </div>
-        <div class="section">
-            <h3>Products & Stock</h3>
-            <a class="button" href="{% url 'inventory:add_product' %}">Add Product</a>
-            <table>
+
+        <!-- Products & Stock -->
+        <h3>Products & Stock</h3>
+        <a class="button" href="{% url 'inventory:add_product' %}">Add Product</a>
+        <table>
+            <thead>
                 <tr>
                     <th>Name</th>
                     <th>Stock</th>
                     <th>Price</th>
                 </tr>
-                {% for product in products %}
-                <tr>
+            </thead>
+            <tbody>
+            {% for product in products %}
+                <tr class="{% if product.quantity < 10 %}low-stock{% endif %}">
                     <td>{{ product.name }}</td>
                     <td>{{ product.quantity }}</td>
                     <td>₦{{ product.price }}</td>
                 </tr>
-                {% empty %}
+            {% empty %}
                 <tr><td colspan="3">No products found.</td></tr>
-                {% endfor %}
-            </table>
-        </div>
-    </div>
+            {% endfor %}
+            </tbody>
+        </table>
+
+    </div> <!-- end main-content-with-performance -->
+
+</main>
+
+<!-- JavaScript -->
+<script>
+    function toggleSidebar() {
+        const sidebar = document.getElementById("sidebar");
+        const submenuContainer = document.getElementById("submenu-container");
+        const submenuRows = document.querySelectorAll('.submenu-row');
+        const body = document.body;
+        const mainContent = document.getElementById('main-content-with-performance');
+
+        const isVisible = sidebar.style.display === "block";
+
+        if (isVisible) {
+            sidebar.style.display = "none";
+            submenuContainer.style.display = "none";
+            submenuRows.forEach(row => {
+                row.classList.remove('active');
+                row.style.display = 'none';
+                row.style.position = '';
+            });
+            body.classList.remove("sidebar-visible");
+            mainContent.style.display = "block";
+        } else {
+            sidebar.style.display = "block";
+            submenuContainer.style.display = "block";
+            body.classList.add("sidebar-visible");
+        }
+    }
+
+    function showSubmenu(index) {
+        const submenuContainer = document.getElementById("submenu-container");
+        const submenuRows = document.querySelectorAll('.submenu-row');
+        const sidebar = document.getElementById("sidebar");
+        const body = document.body;
+        const mainContent = document.getElementById('main-content-with-performance');
+
+        const isLast = index === submenuRows.length - 1;
+
+        sidebar.style.display = "block";
+        submenuContainer.style.display = "block";
+        body.classList.add("sidebar-visible");
+
+        submenuRows.forEach((row, i) => {
+            if (i === index) {
+                row.classList.add('active');
+                row.style.display = 'flex';
+
+                if (isLast) {
+    // Floating effect with aliceblue background and black text
+    row.style.position = 'fixed';
+    row.style.top = '90px';
+    row.style.left = '190px';
+    row.style.maxHeight = '80vh';
+    row.style.overflowY = 'auto';
+    row.style.background = 'aliceblue';  // <-- background color
+    row.style.color = 'black';           // <-- text color
+    row.style.padding = '20px';
+    row.style.borderRadius = '10px';
+    row.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.25)';
+    row.style.zIndex = '2000';
+
+    // Hide content
+    mainContent.style.display = "none";
+}
+
+
+            } else {
+                row.classList.remove('active');
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        document.getElementById("sidebar").style.display = "none";
+        document.getElementById("submenu-container").style.display = "none";
+        document.getElementById("main-content-with-performance").style.display = "block";
+    });
+</script>
+
+
 </body>
 </html>

@@ -8,16 +8,26 @@ from .models import SiteSettings
 # Register your models here.
 from .models import CustomUser
 
-@admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
-    list_display = ('username', 'email', 'role', 'is_approved', 'is_active', 'is_staff')
-    list_filter = ('role', 'is_approved', 'is_active', 'is_staff')
+    model = CustomUser
+
     fieldsets = UserAdmin.fieldsets + (
-        (None, {'fields': ('role', 'is_approved')}),
+        ('Additional Info', {
+            'fields': ('role', 'is_approved', 'profile_picture'),
+        }),
     )
+
     add_fieldsets = UserAdmin.add_fieldsets + (
-        (None, {'fields': ('role', 'is_approved')}),
+        ('Additional Info', {
+            'fields': ('role', 'is_approved', 'profile_picture'),
+        }),
     )
+
+    list_display = ('username', 'email', 'role', 'is_approved')
+    list_filter = ('role', 'is_approved')
+
+admin.site.register(CustomUser, CustomUserAdmin)
+
 
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(admin.ModelAdmin):

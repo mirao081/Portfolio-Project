@@ -72,15 +72,18 @@ class Payment(models.Model):
 class Menu(models.Model):
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
+    order = models.PositiveIntegerField(default=0)
 
     def __str__(self):
         return self.name
+    
+    class Meta:
+        ordering = ['order']
 
 class SubMenu(models.Model):
     menu = models.ForeignKey(Menu, related_name='submenus', on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     url = models.CharField(max_length=200)
-    icon = models.ImageField(upload_to='submenu_icons/', blank=True, null=True)
     amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
     def __str__(self):
@@ -261,6 +264,10 @@ class SalesReturn(models.Model):
     sale = models.ForeignKey(Sale, on_delete=models.CASCADE)
     reason = models.TextField(blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Return of ₦{self.amount} from {self.sale}"
 
 # pos/models.py
 class StockAlert(models.Model):
@@ -272,3 +279,8 @@ class StockAlert(models.Model):
 
     def __str__(self):
         return f"Stock alert for {self.product.name}"
+
+class Return(models.Model):
+    sale_item = models.ForeignKey(SaleItem, on_delete=models.CASCADE)
+    reason = models.TextField()
+    date = models.DateTimeField(auto_now_add=True)

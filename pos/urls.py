@@ -2,7 +2,7 @@ from django.urls import path
 from . import views
 from django.contrib.auth import views as auth_views
 
-app_name = 'pos'
+
 
 app_name = 'pos'
 urlpatterns = [
@@ -15,10 +15,10 @@ urlpatterns = [
     path('return/', views.return_item, name='return_item'),
     path('receipt/', views.issue_receipt, name='issue_receipt'),
     path('customer/add/', views.add_customer, name='add_customer'),
-
     path('apply-discount/', views.apply_discount, name='apply_discount'),
     path('issue-receipt/', views.issue_receipt, name='issue_receipt'),
     path('receipt/<int:sale_id>/', views.sale_receipt, name='sale_receipt'),
     path("pos/", views.new_pos_sale, name="pos_interface"),
     path('ajax/get-product/', views.ajax_get_product, name='ajax_get_product'),
+    # path('product_lookup/', product_lookup, name='product_lookup'),
 ]

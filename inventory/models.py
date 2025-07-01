@@ -88,3 +88,4 @@ class StockAlert(models.Model):
 
     def __str__(self):
         return f"{self.product.name} - Alert at {self.alert_quantity}"
+
